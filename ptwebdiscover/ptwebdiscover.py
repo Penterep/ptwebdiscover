@@ -18,7 +18,6 @@
     along with ptwebdiscover.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import argparse
 import datetime
 import time
@@ -272,7 +271,7 @@ class ptwebdiscover():
 
     def prepare_and_send_request(self, url: str, combination: str, technology:str = None) -> None:
         response = self.try_prepare_and_send_request(url)
-        if response:
+        if response.status_code:
             self.process_response(url, response, combination, technology)
         
         
@@ -408,7 +407,7 @@ class ptwebdiscover():
 
     def try_prepare_wordlist(self, args: ArgumentOptions) -> tuple[int, list[str]]:
         try:
-            self.prepare_wordlist(args)
+            return self.prepare_wordlist(args)
         except FileNotFoundError as e:
             self.ptjsonlib.end_error(f"Wordlist {e.filename} not found", self.args.json)
         except PermissionError as e:
@@ -575,7 +574,7 @@ class ptwebdiscover():
                 ptprinthelper.ptprint( ptprinthelper.out_ifnot("\n", condition=self.args.json))
             if not is_detail:
                 ptprinthelper.ptprint( ptprinthelper.out_ifnot(line, condition=self.args.json))
-                #TODO repaire JSON
+                #TODO repair JSON
                 if self.args.json:
                     print(line)
                 if self.args.output:
@@ -643,12 +642,15 @@ class ptwebdiscover():
 
     def get_and_set_cookies(self, response: requests.Response) -> str:
         cookies = ""
-        if not self.args.refuse_cookies:
-            for c in response.raw.headers.getlist('Set-Cookie'):
-                cookies += c.split("; ")[0] + "; "
+        try:
+            if not self.args.refuse_cookies:
+                for c in response.raw.headers.getlist('Set-Cookie'):
+                    cookies += c.split("; ")[0] + "; "
+        except:
+            pass
         cookies += self.args.cookie
         return cookies
-    
+
 
 def get_help():
     return [
