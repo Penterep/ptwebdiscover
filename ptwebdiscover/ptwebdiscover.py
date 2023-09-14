@@ -18,7 +18,6 @@
     along with ptwebdiscover.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-__version__ = "1.0.0"
 
 import argparse
 import datetime
@@ -45,6 +44,9 @@ from ptdataclasses.findingdetail import FindingDetail
 from responseprocessing import ResponseProcessor
 from findings import Findings
 from keyspace import Keyspace
+
+from _version import __version__
+
 
 class ptwebdiscover():
     def __init__(self, args: ArgumentOptions) -> None:
