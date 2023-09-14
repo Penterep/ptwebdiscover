@@ -21,8 +21,8 @@ source ~/.bashrc
 
 > Add to PATH for ZSH
 ```bash
-echo "export PATH=\"`python3 -m site --user-base`/bin:\$PATH\"" >> ~/.zshhrc
-source ~/.zshhrc
+echo "export PATH=\"`python3 -m site --user-base`/bin:\$PATH\"" >> ~/.zshrc
+source ~/.zshrc
 ```
 
 ## Usage examples
@@ -107,6 +107,8 @@ ptlibs
 
 ## Version History
 ```
+1.0.1
+    - Error hotfix
 1.0.0
     - Code improvements
     - Updated for latest ptlibs
