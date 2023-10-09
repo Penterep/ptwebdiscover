@@ -107,6 +107,8 @@ ptlibs
 
 ## Version History
 ```
+1.0.2
+    - tldextract fix
 1.0.1
     - Error hotfix
 1.0.0
