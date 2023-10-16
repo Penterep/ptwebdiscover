@@ -1,5 +1,1 @@
-appdirs==1.4.4
-requests==2.28.1
-tldextract==3.4.0
-treelib==1.6.4
-requests-toolbelt==1.0.0
+.
