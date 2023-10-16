@@ -51,7 +51,7 @@ class ptwebdiscover():
     def __init__(self, args: ArgumentOptions) -> None:
         self.args: ProcessedArgumentOptions                         = args
         self.args.timeout                                           = args.timeout / 1000
-        self.args.content_length                                    = args.content_length * 1000
+        self.args.content_length                                    = args.content_length * 1000 
         self.args.delay                                             = args.delay / 1000
         self.args.is_star                                           = True if "*" in args.url else False
         self.args.nochanged_url                                     = self.args.url
@@ -63,7 +63,7 @@ class ptwebdiscover():
         self.args.proxies                                           = {"http": args.proxy, "https": args.proxy}
         self.args.charset                                           = ptcharsethelper.get_charset(["lowercase"]) if not args.charsets and not args.wordlist else ptcharsethelper.get_charset(args.charsets)
         self.args.parse                                             = args.parse or args.parse_only
-        self.args.length_max                                        = args.length_max if args.length_max else 99 if args.wordlist else 6 
+        self.args.length_max                                        = args.length_max if args.length_max else 99 if args.wordlist else 6
         self.args.begin_with                                        = args.begin_with if args.begin_with else ""
         self.args.threads                                           = args.threads    if not args.delay  else 1
         self.args.method                                            = args.method     if not (args.string_in_response or args.string_not_in_response or args.parse or args.save) else "GET"
@@ -73,7 +73,8 @@ class ptwebdiscover():
         self.args.is_star_in_domain                                 = True if self.args.is_star and self.args.position < len(self.domain_with_protocol)+1 else False
         self.urlpath                                                = Url(self.args.url).get_path_from_url(with_l_slash=True, without_r_slash=True)
         self.args.auth                                              = tuple(args.auth.split(":")) if args.auth else None
-        self.ptjsonlib                                              = ptjsonlib.PtJsonLib(self.args.json)
+        self.ptjsonlib                                              = ptjsonlib.PtJsonLib()
+        self.use_json                                               = args.json
         #self.ptthreads                                             = ptthreads.PtThreads(args.errors)
         self.ptthreads                                              = ptthreads.PtThreads()
         self.printlock                                              = printlock.PrintLock()
@@ -83,38 +84,38 @@ class ptwebdiscover():
         self.check_args_combinations()
         self.args.extensions                                        = self.prepare_extensions(args) # must be placed after set of self.directories
         self.prepare_not_directories(self.args.not_directories)
-    
-    
+
+
     def run(self, args: ArgumentOptions) -> None:
         if not args.without_dns_cache:
             self.cache_dns()
-        
+
         ptnethelper.check_connectivity(self.args.proxies)
-        
+
         if not self.args.is_star_in_domain:
-            #TODO set cookies with star in url too
+            # TODO set cookies with star in url too
             self.set_header_cookies()
-        
+
         self.initialize_counters()
-        
+
         self.determine_keyspace(args)
-        
+
         self.print_configuration(args)
-        
+
         self.determine_keyspace_complete(args.parse_only)
-        
+
         for self.directory_finished, self.directory in enumerate(Findings.directories):
             self.process_directory(args)
-        
+
         if self.args.recurse:
             self.process_notvisited_urls()
-        
+
         if self.args.backups:
             self.process_backups()
-        
+
         if self.args.backups or self.args.backups_only:
             self.process_all_backups()
-        
+
         self.print_results()
 
 
@@ -174,18 +175,18 @@ class ptwebdiscover():
         self.start_dict_time = time.time()
         ptprinthelper.clear_line_ifnot(condition = self.args.json)
         ptprinthelper.ptprint( ptprinthelper.out_title_ifnot("Check " + self.domain_with_protocol + self.directory, self.args.json))
-        
+
         if not self.check_posibility_testing():
             self.printlock.lock_print( ptprinthelper.out_ifnot("Not posible to check this directory. Use -sy, -sn or -sc parameter.", "ERROR", self.args.json), end="\n", clear_to_eol=True)
             return
-        
+
         if args.wordlist or args.parse_only or args.backups_only:
             if args.parse_only or args.backups_only:
                 Keyspace.space = 1
                 wordlist = [""]
             else:
                 Keyspace.space, wordlist = self.try_prepare_wordlist(args)
-            
+
             self.keyspace_for_directory = Keyspace.space
             self.ptthreads.threads(wordlist, self.dictionary_discover, self.args.threads)
         else:
@@ -202,15 +203,23 @@ class ptwebdiscover():
         if self.args.recurse:
             self.process_notvisited_urls()
 
-    
+
     def process_all_backups(self):
         self.prepare_backup()
         self.search_for_backup_of_all(self.domain)
 
 
     def print_results(self):
-        self.output_result(Findings.findings, Findings.details, Findings.technologies)
-        ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"Finished in {ptmisclib.time2str(time.time()-self.start_time)} - discovered: {len(Findings.findings)} items", "INFO", self.args.json))
+        if self.use_json:
+            nodes = []
+            for url in Findings.findings:
+                nodes.extend(self.ptjsonlib.parse_url2nodes(url))
+            self.ptjsonlib.add_nodes(nodes)
+            self.ptjsonlib.set_status("ok")
+            ptprinthelper.ptprint(self.ptjsonlib.get_result_json(), "", self.use_json)
+        else:
+            self.output_result(Findings.findings, Findings.details, Findings.technologies)
+            ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"Finished in {ptmisclib.time2str(time.time()-self.start_time)} - discovered: {len(Findings.findings)} items", "INFO", self.args.json))
 
 
     def dictionary_discover(self, line: str) -> None:
@@ -273,12 +282,12 @@ class ptwebdiscover():
         response = self.try_prepare_and_send_request(url)
         if response.status_code:
             self.process_response(url, response, combination, technology)
-        
-        
+
+
     def try_prepare_and_send_request(self, url: str) -> requests.Response | None:
         time_to_finish_complete = self.get_time_to_finish()
         dirs_todo = len(Findings.directories) - self.directory_finished - 1
-        dir_no = "(D:" + str(dirs_todo) + " / " + str(int(self.counter / Keyspace.space * 100)) + "%)" if dirs_todo else ""        
+        dir_no = "(D:" + str(dirs_todo) + " / " + str(int(self.counter / Keyspace.space * 100)) + "%)" if dirs_todo else ""
         try:
             response = self.visit_send_request(url)
         except Exception as e:
@@ -288,22 +297,22 @@ class ptwebdiscover():
         self.printlock.lock_print(f"{str(datetime.timedelta(seconds=time_to_finish_complete))} ({int(self.counter_complete / Keyspace.space_complete * 100)}%) {dir_no} {url}", end="\r", condition = not(self.args.json or self.args.silent), clear_to_eol=True)
         time.sleep(self.args.delay)
         return response
-    
-    
+
+
     def get_time_to_finish(self):
         if self.counter == 0 or self.counter_complete == 0:
             time_to_finish_complete = 0
         else:
             time_to_finish_complete = int(((time.time() - self.start_time) / self.counter_complete) * (Keyspace.space_complete - self.counter_complete))
         return time_to_finish_complete
-    
-    
+
+
     def visit_send_request(self, url: str) -> requests.Response:
         response = self.send_request(url)
         Findings.visited.append(url)
         return response
 
-    
+
     def send_request(self, url: str) -> requests.Response:
         headers = copy.deepcopy(self.args.headers)
         if self.args.target:
@@ -312,7 +321,7 @@ class ptwebdiscover():
             headers.update({'Host': host})
         response = ptmisclib.load_url_from_web_or_temp(url, self.args.method, headers=headers, timeout=self.args.timeout, proxies=self.args.proxies, verify=False, redirects=not(self.args.not_redirect), auth=self.args.auth, cache=self.args.cache)
         return response
-        
+
 
     def process_response(self, request_url: str, response: requests.Response, combination: str, technology:str = None) -> None:
         if self.is_processable(response):
@@ -346,7 +355,7 @@ class ptwebdiscover():
             or (self.args.string_in_response and self.args.string_in_response in response.text)
             or (self.args.string_not_in_response and not self.args.string_not_in_response in response.text)
         )
-        
+
 
     def check_posibility_testing(self) -> bool:
         if self.args.is_star_in_domain or self.args.without_availability:
@@ -361,7 +370,7 @@ class ptwebdiscover():
             self.ptjsonlib.end_error("Connection error when running posibility testing check", self.args.json)
         return (response.status_code in self.args.status_codes) or (self.args.string_in_response and self.args.string_in_response in response.text) or (self.args.string_not_in_response and not self.args.string_not_in_response in response.text)
 
-    
+
     def check_args_combinations(self) -> None:
         if self.args.is_star:
             if self.args.backups or self.args.backups_only:
@@ -379,8 +388,8 @@ class ptwebdiscover():
                 self.ptjsonlib.end_error("Cannot use output without domain with '*' character in domain", self.args.json)
         if self.args.wordlist and (self.args.backups_only or self.args.parse_only):
                 self.ptjsonlib.end_error("Cannot use wordlist with parameters --parse-only and --backup-only", self.args.json)
-    
-    
+
+
     def prepare_not_directories(self, not_directories: list[str]) -> None:
         for nd in not_directories:
             nd = nd if nd.startswith("/") else "/"+nd
@@ -419,7 +428,7 @@ class ptwebdiscover():
         for wl in args.wordlist:
             with open(wl, encoding='utf-8', errors='ignore') as f:
                 wordlist = list(f)
-                wordlist = [item.strip() for item in wordlist if item.startswith(self.args.begin_with) and len(item) >= self.args.length_min and len(item) <= self.args.length_max]    
+                wordlist = [item.strip() for item in wordlist if item.startswith(self.args.begin_with) and len(item) >= self.args.length_min and len(item) <= self.args.length_max]
             if args.case_insensitive or "lowercase" in args.charsets:
                 wordlist = [item.lower() for item in wordlist]
                 wordlist_complete += wordlist
@@ -453,7 +462,7 @@ class ptwebdiscover():
         self.counter           = 0
         Keyspace.space         = (len(self.backup_exts) * len(Findings.findings) * 2) + (len(self.backup_chars) * len(Findings.findings)) + (len(self.backup_all_exts) * len(self.domain.split(".")) * 2)
         Keyspace.increment_space_complete_by(Keyspace.space)
-        
+
 
     def search_backups(self, url: str) -> None:
         try:
@@ -467,8 +476,8 @@ class ptwebdiscover():
         for backup_ext in self.backup_exts:
             self.search_for_backup_of_source(url, backup_ext, old_ext=True,  char_only=False)
             self.search_for_backup_of_source(url, backup_ext, old_ext=False, char_only=False)
-    
-    
+
+
     def search_for_backup_of_all(self, domain: str) -> None:
         ptprinthelper.clear_line_ifnot(condition = self.args.json)
         ptprinthelper.ptprint( ptprinthelper.out_title_ifnot("Search for completed backups of the website", self.args.json))
@@ -487,13 +496,13 @@ class ptwebdiscover():
                         continue
                     self.ptthreads.threads(self.backup_all_exts.copy(), self.search_for_backup_of_all_exts, self.args.threads)
                     self.domain_back_name += delimeter
-                    
+
 
     def search_for_backup_of_all_exts(self, ext: str) -> None:
         self.counter += 1
         self.counter_complete += 1
         self.prepare_and_send_request(self.domain_with_protocol + "/" + self.domain_back_name + ext, "")
-        
+
 
     def search_for_backup_of_source(self, url: str, ext: str, old_ext: bool, char_only: bool) -> None:
         self.counter += 1
@@ -596,7 +605,7 @@ class ptwebdiscover():
             output_file.close()
             tree.save2file(self.args.output)
 
-    
+
     def check_url_availability(self, url: str, proxies: dict[str,str], headers: dict[str,str], auth: tuple[str,str], method: str, position: int) -> requests.Response:
         extract = urllib.parse.urlparse(url)
         if not (extract.scheme == "http" or extract.scheme == "https"):
@@ -760,7 +769,7 @@ def parse_args() -> ArgumentOptions:
     parser.add_argument("-T",  "--timeout", type=int, default=10000)
     parser.add_argument("-cl", "--content-length", type=int, default=1000)
     parser.add_argument("-wdc","--without_dns_cache", action="store_true")
-    parser.add_argument("-wa", "--without_availability", action="store_true") 
+    parser.add_argument("-wa", "--without_availability", action="store_true")
     parser.add_argument("-H",  "--headers", type=ptmisclib.pairs, nargs="+")
     parser.add_argument("-ua", "--user-agent", type=str, default="Penterep Tools")
     parser.add_argument("-c",  "--cookie", type=str, default="")
