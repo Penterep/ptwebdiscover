@@ -38,17 +38,17 @@ class Url:
 
 
     def get_domain_from_url(self, level=True, with_protocol=True) -> str:
-        subdom, dom, suf, _ = tldextract.extract(self.url)
-        if subdom:
-            subdom += "."
+        extract = tldextract.extract(self.url)
+        if extract.subdomain:
+            extract.subdomain += "."
         if with_protocol:
             protocol = self.url.split("://")[0] + "://" if "://" in self.url else "http://"
         else:
             protocol = ""
         if level:
-            return protocol + subdom + dom + ("." if suf else "") + suf
+            return protocol + extract.subdomain + extract.domain + ("." if extract.suffix else "") + extract.suffix
         else:
-            return protocol + dom + ("." if suf else "") + suf
+            return protocol + extract.domain + ("." if extract.suffix else "") + extract.suffix
 
 
     def add_missing_scheme(self, scheme: str) -> str:
