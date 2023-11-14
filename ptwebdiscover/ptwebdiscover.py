@@ -801,7 +801,6 @@ def parse_args() -> ArgumentOptions:
 def main():
     global SCRIPTNAME
     SCRIPTNAME = "ptwebdiscover"
-    requests.packages.urllib3.util.ssl_.DEFAULT_CIPHERS += ':HIGH:!DH:!aNULL'
     requests.packages.urllib3.disable_warnings()
     args = parse_args()
     script = ptwebdiscover(args)
