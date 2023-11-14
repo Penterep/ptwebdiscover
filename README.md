@@ -107,6 +107,8 @@ ptlibs
 
 ## Version History
 ```
+1.0.4
+    - Remove deprecated SSL settings
 1.0.3
     - Added JSON support
     - Adjusted for tldextract 5.0.0
