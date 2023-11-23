@@ -20,7 +20,7 @@ setuptools.setup(
         "Topic :: Security",
         "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)"
     ],
-    python_requires = '>=3.6',
+    python_requires = '>=3.9',
     install_requires=["ptlibs>=1.0.3,<2", "requests", "appdirs", "tldextract>=5.0.0", "treelib"],
     entry_points = {'console_scripts': ['ptwebdiscover = ptwebdiscover.ptwebdiscover:main']},
     include_package_data= True,
