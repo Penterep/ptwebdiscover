@@ -43,7 +43,7 @@ ptwebdiscover -u https://www.example.com -w -sn "Page Not Found"
 ## Options
 ```
 -u    --url                     <url>           URL for test (usage of a star character as anchor)
--ch   --charsets                <charsets>      Specify charset fro brute force (example: lowercase,uppercase,numbers,[custom_chars])
+-ch   --charsets                <charsets>      Specify charset for brute force (example: lowercase,uppercase,numbers,[custom_chars])
                                                 Modify wordlist (lowercase,uppercase,capitalize)
 -lm   --length-min              <length-min>    Minimal length of brute-force tested string (default 1)
 -lx   --length-max              <length-max>    Maximal length of brute-force tested string (default 6 bf / 99 wl
@@ -100,22 +100,17 @@ ptwebdiscover -u https://www.example.com -w -sn "Page Not Found"
 ```
 requests
 appdirs
-tldextract
 treelib
 ptlibs
 ```
 
 ## Version History
 ```
-1.0.4
-    - Remove deprecated SSL settings
-1.0.3
+1.0.5
+    - Added custom tldparser
+1.0.1 - 1.0.4
     - Added JSON support
-    - Adjusted for tldextract 5.0.0
-1.0.2
-    - tldextract fix
-1.0.1
-    - Error hotfix
+    - Removed deprecated SSL settings
 1.0.0
     - Code improvements
     - Updated for latest ptlibs
@@ -132,7 +127,7 @@ ptlibs
 
 ## License
 
-Copyright (c) 2023 Penterep Security s.r.o.
+Copyright (c) 2024 Penterep Security s.r.o.
 
 ptwebdiscover is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
