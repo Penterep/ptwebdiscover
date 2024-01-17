@@ -1,6 +1,6 @@
 import os
 
-import tldextract
+from ptlibs import tldparser
 import urllib.parse
 
 
@@ -38,11 +38,11 @@ class Url:
 
 
     def get_domain_from_url(self, level=True, with_protocol=True) -> str:
-        extract = tldextract.extract(self.url)
+        extract = tldparser.parse_url(self.url)
         if extract.subdomain:
             extract.subdomain += "."
         if with_protocol:
-            protocol = self.url.split("://")[0] + "://" if "://" in self.url else "http://"
+            protocol = extract.protocol + "://" if extract.protocol else "http://"
         else:
             protocol = ""
         if level:

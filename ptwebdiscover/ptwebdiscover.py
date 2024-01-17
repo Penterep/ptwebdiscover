@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 """
-    Copyright (c) 2023 Penterep Security s.r.o.
+    Copyright (c) 2024 Penterep Security s.r.o.
 
     ptwebdiscover - Web Source Discovery Tool
 
@@ -26,19 +26,18 @@ import urllib.parse
 import re
 import requests
 import copy
+
 from io import TextIOWrapper
 
-from utils import treeshow
-from utils.url import Url
-
-from ptlibs import ptnethelper, ptcharsethelper, ptprinthelper
-import ptlibs.ptjsonlib as ptjsonlib
-import ptlibs.ptmisclib as ptmisclib
+from ptlibs import ptnethelper, ptcharsethelper, ptprinthelper, ptjsonlib, ptmisclib
 from ptlibs.threads import ptthreads, printlock, arraylock
 
 from ptdataclasses.argumentoptions import ArgumentOptions
 from ptdataclasses.processedargumentoptions import ProcessedArgumentOptions
 from ptdataclasses.findingdetail import FindingDetail
+
+from utils import treeshow
+from utils.url import Url
 
 from responseprocessing import ResponseProcessor
 from findings import Findings
@@ -47,7 +46,7 @@ from keyspace import Keyspace
 from _version import __version__
 
 
-class ptwebdiscover():
+class PtWebDiscover():
     def __init__(self, args: ArgumentOptions) -> None:
         self.args: ProcessedArgumentOptions                         = args
         self.args.timeout                                           = args.timeout / 1000
@@ -803,7 +802,7 @@ def main():
     SCRIPTNAME = "ptwebdiscover"
     requests.packages.urllib3.disable_warnings()
     args = parse_args()
-    script = ptwebdiscover(args)
+    script = PtWebDiscover(args)
     script.run(args)
 
 
