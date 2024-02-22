@@ -42,7 +42,7 @@ class Url:
         if extract.subdomain:
             extract.subdomain += "."
         if with_protocol:
-            protocol = extract.protocol + "://" if extract.protocol else "http://"
+            protocol = extract.scheme + "://" if extract.scheme else "http://"
         else:
             protocol = ""
         if level:
