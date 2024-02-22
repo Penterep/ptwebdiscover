@@ -212,9 +212,9 @@ class PtWebDiscover():
         if self.use_json:
             nodes = []
             for url in Findings.findings:
-                nodes.extend(self.ptjsonlib.parse_url2nodes(url))
+                self.ptjsonlib.parse_url2nodes(url, nodes)
             self.ptjsonlib.add_nodes(nodes)
-            self.ptjsonlib.set_status("ok")
+            self.ptjsonlib.set_status("finished")
             ptprinthelper.ptprint(self.ptjsonlib.get_result_json(), "", self.use_json)
         else:
             self.output_result(Findings.findings, Findings.details, Findings.technologies)
@@ -335,12 +335,13 @@ class PtWebDiscover():
             c_t, c_l = response_processor.get_content_type_and_length(response.headers)
             c_t_l = " [" + c_t + ", " + c_l + "b] "
             show_target = combination if self.args.target else response.url
+
             self.printlock.lock_print(
                 history +
                 ptprinthelper.add_spaces_to_eon(
-                ptprinthelper.out_ifnot(f"[{response.status_code}] {ct_bullet} {show_target}", "OK", self.args.json) + "  " +
-                ptprinthelper.out_ifnot(f"{technology}", "INFO", self.args.json or not technology), len(c_t_l)) +
-                ptprinthelper.out_ifnot(c_t_l, self.args.json) + parsed_urls + content_location, clear_to_eol=True)
+                ptprinthelper.out_ifnot(f"[{response.status_code}] {ct_bullet} {show_target}", "OK", self.args.json) + " " +
+                ptprinthelper.out_ifnot(f"{technology}", "INFO", self.args.json or not technology), len(c_t_l), condition=self.args.json) +
+                ptprinthelper.out_ifnot(c_t_l, "", self.args.json) + parsed_urls + content_location, clear_to_eol=True)
             response_processor.parse_url_and_add_unigue_url_and_directories(response.url, self.args.include_parameters, self.urlpath, self.keyspace_for_directory, response)
             if technology:
                 response_processor.add_unigue_technology_to_technologies(technology)
