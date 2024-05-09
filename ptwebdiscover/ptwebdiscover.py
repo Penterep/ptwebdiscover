@@ -50,7 +50,7 @@ class PtWebDiscover():
     def __init__(self, args: ArgumentOptions) -> None:
         self.args: ProcessedArgumentOptions                         = args
         self.args.timeout                                           = args.timeout / 1000
-        self.args.content_length                                    = args.content_length * 1000 
+        self.args.content_length                                    = args.content_length * 1000
         self.args.delay                                             = args.delay / 1000
         self.args.is_star                                           = True if "*" in args.url else False
         self.args.nochanged_url                                     = self.args.url

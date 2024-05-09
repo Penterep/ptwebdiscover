@@ -38,7 +38,7 @@ class Url:
 
 
     def get_domain_from_url(self, level=True, with_protocol=True) -> str:
-        extract = tldparser.parse_url(self.url)
+        extract = tldparser.parse(self.url)
         if extract.subdomain:
             extract.subdomain += "."
         if with_protocol:

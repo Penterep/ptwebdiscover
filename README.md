@@ -1,25 +1,23 @@
 [![penterepTools](https://www.penterep.com/external/penterepToolsLogo.png)](https://www.penterep.com/)
 
 
-# PTWEBDISCOVER
-> Web Source Discovery Tool
+## PTWEBDISCOVER - Web Source Discovery Tool
 
 ## Installation
-
 ```
 pip install ptwebdiscover
 ```
 
-## Add to PATH
-If you cannot invoke the script in your terminal, its probably because its not in your PATH. Fix it by running commands below.
+## Adding to PATH
+If you're unable to invoke the script from your terminal, it's likely because it's not included in your PATH. You can resolve this issue by executing the following commands, depending on the shell you're using:
 
-> Add to PATH for Bash
+For Bash Users
 ```bash
 echo "export PATH=\"`python3 -m site --user-base`/bin:\$PATH\"" >> ~/.bashrc
 source ~/.bashrc
 ```
 
-> Add to PATH for ZSH
+For ZSH Users
 ```bash
 echo "export PATH=\"`python3 -m site --user-base`/bin:\$PATH\"" >> ~/.zshrc
 source ~/.zshrc
@@ -43,7 +41,7 @@ ptwebdiscover -u https://www.example.com -w -sn "Page Not Found"
 ## Options
 ```
 -u    --url                     <url>           URL for test (usage of a star character as anchor)
--ch   --charsets                <charsets>      Specify charset for brute force (example: lowercase,uppercase,numbers,[custom_chars])
+-ch   --charsets                <charsets>      Specify charset fro brute force (example: lowercase,uppercase,numbers,[custom_chars])
                                                 Modify wordlist (lowercase,uppercase,capitalize)
 -lm   --length-min              <length-min>    Minimal length of brute-force tested string (default 1)
 -lx   --length-max              <length-max>    Maximal length of brute-force tested string (default 6 bf / 99 wl
@@ -93,37 +91,17 @@ ptwebdiscover -u https://www.example.com -w -sn "Page Not Found"
 -v    --version                                 Show script version
 -h    --help                                    Show this help message
 -j    --json                                    Output in JSON format
-
 ```
 
 ## Dependencies
 ```
-requests
+ptlibs
 appdirs
 treelib
-ptlibs
+filelock
 ```
 
-## Version History
-```
-1.0.5
-    - Added custom tldparser
-1.0.1 - 1.0.4
-    - Added JSON support
-    - Removed deprecated SSL settings
-1.0.0
-    - Code improvements
-    - Updated for latest ptlibs
-0.0.5
-    - Updated prints for new ptlibs
-0.0.4
-    - Disabled availability check, when star in url
-0.0.3
-    - Fixed case sensitivity in wordlists
-    - Added .7z and .tgz extensions to backups search
-0.0.1 - 0.0.2
-    - Alpha releases
-```
+
 
 ## License
 
