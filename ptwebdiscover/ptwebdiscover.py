@@ -48,40 +48,39 @@ from _version import __version__
 
 class PtWebDiscover():
     def __init__(self, args: ArgumentOptions) -> None:
-        self.args: ProcessedArgumentOptions                         = args
-        self.args.timeout                                           = args.timeout / 1000
-        self.args.content_length                                    = args.content_length * 1000
-        self.args.delay                                             = args.delay / 1000
-        self.args.is_star                                           = True if "*" in args.url else False
-        self.args.nochanged_url                                     = self.args.url
-        self.args.url                                               = ptnethelper.remove_slash_from_end_url(args.url) if not self.args.is_star else args.url
-        self.args.url                                               = Url(args.url).add_missing_scheme(self.args.scheme)
-        self.args.target                                            = Url(args.target).add_missing_scheme(self.args.scheme)
-        self.args.position, self.args.url                           = self.get_star_position(self.args.url)
-        self.args.headers                                           = ptnethelper.get_request_headers(args)
-        self.args.proxies                                           = {"http": args.proxy, "https": args.proxy}
-        self.args.charset                                           = ptcharsethelper.get_charset(["lowercase"]) if not args.charsets and not args.wordlist else ptcharsethelper.get_charset(args.charsets)
-        self.args.parse                                             = args.parse or args.parse_only
-        self.args.length_max                                        = args.length_max if args.length_max else 99 if args.wordlist else 6
-        self.args.begin_with                                        = args.begin_with if args.begin_with else ""
-        self.args.threads                                           = args.threads    if not args.delay  else 1
-        self.args.method                                            = args.method     if not (args.string_in_response or args.string_not_in_response or args.parse or args.save) else "GET"
-        self.domain                                                 = Url(self.args.url).get_domain_from_url(level=True, with_protocol=False)
-        self.domain_with_protocol                                   = Url(self.args.url).get_domain_from_url(level=True, with_protocol=True)
-        self.domain_protocol                                        = urllib.parse.urlparse(args.url).scheme
-        self.args.is_star_in_domain                                 = True if self.args.is_star and self.args.position < len(self.domain_with_protocol)+1 else False
-        self.urlpath                                                = Url(self.args.url).get_path_from_url(with_l_slash=True, without_r_slash=True)
-        self.args.auth                                              = tuple(args.auth.split(":")) if args.auth else None
-        self.ptjsonlib                                              = ptjsonlib.PtJsonLib()
-        self.use_json                                               = args.json
-        #self.ptthreads                                             = ptthreads.PtThreads(args.errors)
-        self.ptthreads                                              = ptthreads.PtThreads()
-        self.printlock                                              = printlock.PrintLock()
-        self.arraylock                                              = arraylock.ArrayLock()
-        #self.json_no                                               = self.ptjsonlib.add_json("ptwebdiscover")
-        Findings.directories                                        = arraylock.ThreadSafeArray([self.urlpath + "/"] if not self.args.is_star else [""])
+        self.args: ProcessedArgumentOptions  = args
+        self.args.timeout: int               = args.timeout / 1000
+        self.args.content_length: int        = args.content_length * 1000
+        self.args.delay: int                 = args.delay / 1000
+        self.args.is_star: bool              = True if "*" in args.url else False
+        self.args.nochanged_url: str         = self.args.url
+        self.args.url                        = ptnethelper.remove_slash_from_end_url(args.url) if not self.args.is_star else args.url
+        self.args.url                        = Url(args.url).add_missing_scheme(self.args.scheme)
+        self.args.target: str                = Url(args.target).add_missing_scheme(self.args.scheme)
+        self.args.position, self.args.url    = self.get_star_position(self.args.url)
+        self.args.headers: dict              = ptnethelper.get_request_headers(args)
+        self.args.proxies: dict              = {"http": args.proxy, "https": args.proxy}
+        self.args.charset: list              = ptcharsethelper.get_charset(["lowercase"]) if not args.charsets and not args.wordlist else ptcharsethelper.get_charset(args.charsets)
+        self.args.parse: bool                = args.parse or args.parse_only
+        self.args.length_max: int            = args.length_max if args.length_max else 99 if args.wordlist else 6
+        self.args.begin_with: str            = args.begin_with if args.begin_with else ""
+        self.args.threads: int               = args.threads if not args.delay  else 1
+        self.args.method: str                = args.method if not (args.string_in_response or args.string_not_in_response or args.parse or args.save) else "GET"
+        self.domain                          = Url(self.args.url).get_domain_from_url(level=True, with_protocol=False)
+        self.domain_with_protocol            = Url(self.args.url).get_domain_from_url(level=True, with_protocol=True)
+        self.domain_protocol                 = urllib.parse.urlparse(args.url).scheme
+        self.args.is_star_in_domain          = True if self.args.is_star and self.args.position < len(self.domain_with_protocol)+1 else False
+        self.urlpath                         = Url(self.args.url).get_path_from_url(with_l_slash=True, without_r_slash=True)
+        self.args.auth                       = tuple(args.auth.split(":")) if args.auth else None
+        self.use_json                        = args.json
+        self.ptjsonlib                       = ptjsonlib.PtJsonLib()
+        self.ptthreads                       = ptthreads.PtThreads()
+        self.printlock                       = printlock.PrintLock()
+        self.arraylock                       = arraylock.ArrayLock()
+        self.args.extensions                 = self.prepare_extensions(args) # must be placed after set of self.directories
+        Findings.directories                 = arraylock.ThreadSafeArray([self.urlpath + "/"] if not self.args.is_star else [""])
+        #self.ptthreads                      = ptthreads.PtThreads(args.errors)
         self.check_args_combinations()
-        self.args.extensions                                        = self.prepare_extensions(args) # must be placed after set of self.directories
         self.prepare_not_directories(self.args.not_directories)
 
 
@@ -89,7 +88,8 @@ class PtWebDiscover():
         if not args.without_dns_cache:
             self.cache_dns()
 
-        ptnethelper.check_connectivity(self.args.proxies)
+        if not args.without_availability:
+            ptnethelper.check_connectivity(self.args.proxies)
 
         if not self.args.is_star_in_domain:
             # TODO set cookies with star in url too
@@ -179,12 +179,16 @@ class PtWebDiscover():
             self.printlock.lock_print( ptprinthelper.out_ifnot("Not posible to check this directory. Use -sy, -sn or -sc parameter.", "ERROR", self.args.json), end="\n", clear_to_eol=True)
             return
 
-        if args.wordlist or args.parse_only or args.backups_only:
+        if args.wordlist or args.source or args.parse_only or args.backups_only:
             if args.parse_only or args.backups_only:
                 Keyspace.space = 1
                 wordlist = [""]
             else:
-                Keyspace.space, wordlist = self.try_prepare_wordlist(args)
+                if args.wordlist:
+                    Keyspace.space, wordlist = self.try_prepare_wordlist(args)
+                if args.source:
+                    wordlist = [w for w in args.source]
+                    Keyspace.space = len(wordlist) * len(args.extensions)
 
             self.keyspace_for_directory = Keyspace.space
             self.ptthreads.threads(wordlist, self.dictionary_discover, self.args.threads)
@@ -210,9 +214,7 @@ class PtWebDiscover():
 
     def print_results(self):
         if self.use_json:
-            nodes = []
-            for url in Findings.findings:
-                self.ptjsonlib.parse_url2nodes(url, nodes)
+            nodes: list = self.ptjsonlib.parse_urls2nodes(Findings.findings)
             self.ptjsonlib.add_nodes(nodes)
             self.ptjsonlib.set_status("finished")
             ptprinthelper.ptprint(self.ptjsonlib.get_result_json(), "", self.use_json)
@@ -685,6 +687,7 @@ def get_help():
         {"options": [
             ["-u",  "--url",                    "<url>",            "URL for test (usage of a star character as anchor)"],
             ["-ch", "--charsets",               "<charsets>",       "Specify charset fro brute force (example: lowercase,uppercase,numbers,[custom_chars])"],
+            ["-src", "--source",               "<source>",          "Check for presence of only specified <source> (eg. -src robots.txt)"],
             ["",    "",                         "",                 "Modify wordlist (lowercase,uppercase,capitalize)"],
             ["-lm", "--length-min",             "<length-min>",     "Minimal length of brute-force tested string (default 1)"],
             ["-lx", "--length-max",             "<length-max>",     "Maximal length of brute-force tested string (default 6 bf / 99 wl"],
@@ -705,18 +708,18 @@ def get_help():
             ["-nd", "--not-directories",        "<directories>",    "Not include listed directories when recursive browse run"],
             ["-sy", "--string-in-response",     "<string>",         "Print findings only if string in response (GET method is used)"],
             ["-sn", "--string-not-in-response", "<string>",         "Print findings only if string not in response (GET method is used)"],
-            ["-sc", "--status-codes",           "<status codes>",   "Ignore response with status codes (default 404)"],
-            ["-m",  "--method",                 "<method>",         "Use said HTTP method (default: HEAD)"],
-            ["-se", "--scheme",                 "<scheme>",         "Use scheme when missing (default: http)"],
+            ["-sc", "--status-codes",           "<status-codes>",   "Ignore response with status codes (default 404)"],
             ["-d",  "--delay",                  "<miliseconds>",    "Delay before each request in seconds"],
-            ["-p",  "--proxy",                  "<proxy>",          "Use proxy (e.g. http://127.0.0.1:8080)"],
             ["-T",  "--timeout",                "<miliseconds>",    "Manually set timeout (default 10000)"],
             ["-cl", "--content-length",         "<kilobytes>",      "Max content length to download and parse (default: 1000KB)"],
+            ["-m",  "--method",                 "<method>",         "Use said HTTP method (default: HEAD)"],
+            ["-se", "--scheme",                 "<scheme>",         "Use scheme when missing (default: http)"],
+            ["-p",  "--proxy",                  "<proxy>",          "Use proxy (e.g. http://127.0.0.1:8080)"],
             ["-H",  "--headers",                "<headers>",        "Use custom headers"],
-            ["-ua", "--user-agent",             "<agent>",          "Use custom value of User-Agent header"],
+            ["-a",  "--user-agent",             "<agent>",          "Use custom value of User-Agent header"],
             ["-c",  "--cookie",                 "<cookies>",        "Use cookie (-c \"PHPSESSID=abc; any=123\")"],
-            ["-rc", "--refuse-cookies",         "",                 "Do not use cookies sets by application"],
-            ["-a",  "--auth",                   "<name:pass>",      "Use HTTP authentication"],
+            ["-A",  "--auth",                   "<name:pass>",      "Use HTTP authentication"],
+            ["-rc", "--refuse-cookies",         "",                 "Do not use cookies set by application"],
             ["-t",  "--threads",                "<threads>",        "Number of threads (default 20)"],
             ["-wd", "--without-domain",         "",                 "Output of discovered sources without domain"],
             ["-wh", "--with-headers",           "",                 "Output of discovered sources with headers"],
@@ -729,8 +732,9 @@ def get_help():
             ["-tg", "--target",                 "<ip or host>",     "Use this target when * is in domain"],
             ["-nr", "--not-redirect",           "",                 "Do not follow redirects"],
             ["-s",  "--silent",                 "",                 "Do not show statistics in realtime"],
+            ["-C",  "--cache",                  "",                 "Cache each request response to temp file"],
+            ["-ne", "--non-exist",              "",                 "Check, if non existing pages return status code 200."],
             ["-er", "--errors",                 "",                 "Show all errors"],
-            ["-C",  "--cache",                   "",                "Cache each request response to temp file"],
             ["-v",  "--version",                "",                 "Show script version"],
             ["-h",  "--help",                   "",                 "Show this help message"],
             ["-j",  "--json",                   "",                 "Output in JSON format"],
@@ -740,11 +744,14 @@ def get_help():
 
 def parse_args() -> ArgumentOptions:
     parser = argparse.ArgumentParser(add_help=False, usage=f"{SCRIPTNAME} <options>")
-    parser.add_argument("-u",  "--url", type=str)
+    exclusive = parser.add_mutually_exclusive_group()
+    exclusive.add_argument("-w",  "--wordlist", type=str, nargs="+")
+    exclusive.add_argument("-src", "--source", type=str, nargs="+")
+
+    parser.add_argument("-u",  "--url", type=str, required=True)
     parser.add_argument("-ch", "--charsets", type=str, nargs="+", default=[])
     parser.add_argument("-lm", "--length-min", type=int, default=1)
     parser.add_argument("-lx", "--length-max", type=int)
-    parser.add_argument("-w",  "--wordlist", type=str, nargs="+")
     parser.add_argument("-pf", "--prefix", type=str, default="")
     parser.add_argument("-sf", "--suffix", type=str, default="")
     parser.add_argument("-bw", "--begin-with", type=str)
@@ -771,7 +778,7 @@ def parse_args() -> ArgumentOptions:
     parser.add_argument("-wdc","--without_dns_cache", action="store_true")
     parser.add_argument("-wa", "--without_availability", action="store_true")
     parser.add_argument("-H",  "--headers", type=ptmisclib.pairs, nargs="+")
-    parser.add_argument("-ua", "--user-agent", type=str, default="Penterep Tools")
+    parser.add_argument("-a", "--user-agent", type=str, default="Penterep Tools")
     parser.add_argument("-c",  "--cookie", type=str, default="")
     parser.add_argument("-rc", "--refuse-cookies", action="store_true")
     parser.add_argument("-nr", "--not-redirect", action="store_true", default=False)
@@ -783,12 +790,18 @@ def parse_args() -> ArgumentOptions:
     parser.add_argument("-tr", "--tree", action="store_true")
     parser.add_argument("-o",  "--output", type=str)
     parser.add_argument("-S",  "--save", type=str)
-    parser.add_argument("-a",  "--auth", type=str)
-    parser.add_argument("-j",  "--json", action="store_true")
+    parser.add_argument("-A",  "--auth", type=str)
+    parser.add_argument("-ne", "--non-exist", action="store_true")
     parser.add_argument("-er", "--errors", action="store_true")
     parser.add_argument("-s",  "--silent", action="store_true")
     parser.add_argument("-v",  "--version", action="version", version=f"{SCRIPTNAME} {__version__}")
     parser.add_argument("-C",  "--cache", action="store_true")
+    parser.add_argument("-j",  "--json", action="store_true")
+
+    parser.add_argument("--socket-address",          type=str, default=None)
+    parser.add_argument("--socket-port",             type=str, default=None)
+    parser.add_argument("--process-ident",           type=str, default=None)
+
 
     if len(sys.argv) == 1 or "-h" in sys.argv or "--help" in sys.argv:
         ptprinthelper.help_print(get_help(), SCRIPTNAME, __version__)

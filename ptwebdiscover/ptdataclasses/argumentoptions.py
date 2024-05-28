@@ -4,6 +4,8 @@ from dataclasses import dataclass
 @dataclass
 class ArgumentOptions:
     url: str
+    source: str
+    non_exist: list[str]
     charsets: list[str]
     length_min: int
     length_max: int
@@ -51,3 +53,6 @@ class ArgumentOptions:
     errors: bool
     silent: bool
     cache: bool
+    socket_address: str
+    socket_port: str
+    process_ident: str
