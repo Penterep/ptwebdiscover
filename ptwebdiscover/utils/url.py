@@ -5,10 +5,9 @@ import urllib.parse
 
 
 class Url:
-
+    """A class to represent and manipulate a URL."""
     def __init__(self, url: str) -> None:
         self.url = url
-
 
     def get_path_from_url(self, with_l_slash=True, without_r_slash=False) -> str:
         url = self.get_url_without_parameters()
@@ -20,14 +19,11 @@ class Url:
         else:
             return url[domain_len+1:out_r_slash]
 
-
     def get_url_without_parameters(self) -> str:
         return self.url.split("?")[0].split("#")[0]
 
-
     def is_url_dictionary(self):
         return self.get_url_without_parameters().endswith("/")
-
 
     def standardize_url(self, domain_with_protocol: str) -> str:
         path = self.url[len(domain_with_protocol):]
@@ -35,7 +31,6 @@ class Url:
             path = "/"
         abs = os.path.abspath(path)+"/" if path.endswith("/") and path !="/" else os.path.abspath(path)
         return domain_with_protocol + abs
-
 
     def get_domain_from_url(self, level=True, with_protocol=True) -> str:
         extract = tldparser.parse(self.url)
@@ -49,7 +44,6 @@ class Url:
             return protocol + extract.subdomain + extract.domain + ("." if extract.suffix else "") + extract.suffix
         else:
             return protocol + extract.domain + ("." if extract.suffix else "") + extract.suffix
-
 
     def add_missing_scheme(self, scheme: str) -> str:
         extract = urllib.parse.urlparse(self.url)
