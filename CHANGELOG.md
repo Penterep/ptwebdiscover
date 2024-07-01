@@ -1,5 +1,10 @@
 ## Version History
 
+Version 1.0.8
+-------------
+- Add check status for non-existing resources method
+- Small fixes
+
 Version 1.0.7
 -------------
 - Fixed JSON output

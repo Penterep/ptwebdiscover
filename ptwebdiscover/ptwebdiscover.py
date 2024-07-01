@@ -83,6 +83,9 @@ class PtWebDiscover():
         self.check_args_combinations()
         self.prepare_not_directories(self.args.not_directories)
 
+        if args.non_exist and self.args.is_star:
+            ptprinthelper.ptprint(" ", None)
+            self.ptjsonlib.end_error("Cannot use anchor '*' with -ne/--non-exist options", self.use_json)
 
     def run(self, args: ArgumentOptions) -> None:
         if not args.without_dns_cache:
@@ -103,6 +106,10 @@ class PtWebDiscover():
 
         self.determine_keyspace_complete(args.parse_only)
 
+        # send request to non existing source
+        if args.non_exist:
+            self.check_status_for_non_existing_resource(args)
+
         for self.directory_finished, self.directory in enumerate(Findings.directories):
             self.process_directory(args)
 
@@ -116,6 +123,21 @@ class PtWebDiscover():
             self.process_all_backups()
 
         self.print_results()
+
+
+    def check_status_for_non_existing_resource(self, args):
+        """Send request to non-existing resource on target server, if server returns status 200, PTV-WEB-INJECT-REFLEXURL will be added to vulnerabilities"""
+        ptprinthelper.ptprint("Check status for not-existing resource", "TITLE", condition=not self.use_json, colortext=True)
+
+        url = args.url + "/d8d9afas7d49f6a1dsf.php"
+        ptprinthelper.ptprint(f"Sending request to: {url}", "INFO", condition=not self.use_json)
+        response = self.send_request(url)
+
+        ptprinthelper.ptprint(f"Returned status code: {response.status_code}", "INFO", condition=not self.use_json)
+
+        if response.status_code:# in [200, ]:
+            self.ptjsonlib.add_vulnerability("PTV-WEB-INJECT-REFLEXURL")
+            ptprinthelper.ptprint("Server returned SC 200 for not-existing resources", bullet_type="VULN", condition=True)
 
 
     def cache_dns(self) -> None:
@@ -161,6 +183,8 @@ class PtWebDiscover():
         ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"Recurse............: {self.args.recurse}", "INFO", self.args.json))
         ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"Parse content......: {self.args.parse}", "INFO", self.args.json))
         ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"Search for backups.: {self.args.backups}", "INFO", self.args.json))
+
+        ptprinthelper.ptprint( ptprinthelper.out_ifnot(f" ", "", self.args.json))
 
 
     def determine_keyspace_complete(self, parse_only: bool) -> None:
@@ -382,7 +406,8 @@ class PtWebDiscover():
             if self.args.recurse:
                 self.ptjsonlib.end_error("Cannot use recursivity with '*' character in url",  self.args.json)
         if self.args.is_star_in_domain:
-            if self.args.extensions or self.args.extensions_file:
+            if self.args.extensions != [""] or self.args.extensions_file:
+                print(self.args.extensions, self.args.extensions_file)
                 self.ptjsonlib.end_error("Cannot use extensions with '*' character in domain", self.args.json)
             if self.args.tree:
                 self.ptjsonlib.end_error("Cannot use tree output with '*' character in domain", self.args.json)
@@ -611,7 +636,7 @@ class PtWebDiscover():
     def check_url_availability(self, url: str, proxies: dict[str,str], headers: dict[str,str], auth: tuple[str,str], method: str, position: int) -> requests.Response:
         extract = urllib.parse.urlparse(url)
         if not (extract.scheme == "http" or extract.scheme == "https"):
-            self.ptjsonlib.end_error("Check scheme in url (is allowed using of http:// or https://)", self.args.json)
+            self.ptjsonlib.end_error("Check scheme in url (allowed schemes are http:// and https://)", self.args.json)
         try:
             response = ptmisclib.load_url_from_web_or_temp(url, method, headers=headers, proxies=proxies, verify=False, redirects=True, auth=auth, cache=self.args.cache)
         except:
@@ -678,7 +703,7 @@ def get_help():
             "ptwebdiscover -u https://www.example.com -w",
             "ptwebdiscover -u https://www.example.com -w wordlist.txt",
             "ptwebdiscover -u https://www.example.com -w wordlist.txt --begin_with admin",
-            "ptwebdiscover -u https://*.example.com -w",
+            "ptwebdiscover -u https://*.example.com -w wordlist.txt",
             "ptwebdiscover -u https://www.example.com/exam*.txt",
             "ptwebdiscover -u https://www.example.com -e \"\" bak old php~ php.bak",
             "ptwebdiscover -u https://www.example.com -E extensions.txt",
