@@ -91,23 +91,17 @@ class PtWebDiscover():
         if not args.without_dns_cache:
             self.cache_dns()
 
-        if not args.without_availability:
-            ptnethelper.check_connectivity(self.args.proxies)
-
         if not self.args.is_star_in_domain:
             # TODO set cookies with star in url too
             self.set_header_cookies()
 
         self.initialize_counters()
-
         self.determine_keyspace(args)
-
         self.print_configuration(args)
-
         self.determine_keyspace_complete(args.parse_only)
 
-        # send request to non existing source
-        if args.non_exist:
+
+        if args.non_exist: # send request to non existing source
             self.check_status_for_non_existing_resource(args)
 
         for self.directory_finished, self.directory in enumerate(Findings.directories):
@@ -135,8 +129,8 @@ class PtWebDiscover():
 
         ptprinthelper.ptprint(f"Returned status code: {response.status_code}", "INFO", condition=not self.use_json)
 
-        if response.status_code:# in [200, ]:
-            self.ptjsonlib.add_vulnerability("PTV-WEB-INJECT-REFLEXURL")
+        if response.status_code == 200:# in [200, ]:
+            self.ptjsonlib.add_vulnerability("PTV-WEB-INJECT-REFLEXURL") # TODO: Really a vuln?
             ptprinthelper.ptprint("Server returned SC 200 for not-existing resources", bullet_type="VULN", condition=True)
 
 
@@ -155,6 +149,20 @@ class PtWebDiscover():
 
 
     def determine_keyspace(self, args: ArgumentOptions) -> None:
+        """
+        Determines the keyspace based on the provided arguments.
+
+        If a wordlist is provided, the keyspace is derived from the wordlist.
+        Otherwise, it is generated using the specified charset, length constraints,
+        and the number of extensions.
+
+        Args:
+            args (ArgumentOptions): The arguments containing wordlist, charset, 
+                                    length constraints, and extensions.
+
+        Returns:
+            None
+        """
         if args.wordlist:
             Keyspace.space, _ = self.try_prepare_wordlist(args)
         else:
@@ -384,7 +392,7 @@ class PtWebDiscover():
 
 
     def check_posibility_testing(self) -> bool:
-        if self.args.is_star_in_domain or self.args.without_availability:
+        if self.args.is_star_in_domain:
             return True
         else:
             directory = self.directory if self.directory.endswith("/") else self.directory + "/"
@@ -536,7 +544,7 @@ class PtWebDiscover():
         self.counter_complete += 1
         if char_only:
             try:
-                patern = '^((https?|ftps?):\/\/[^?#"\'\s]*\/[^?#"\'\s]*)[\\?#"\'\s]*'
+                patern = r'^((https?|ftps?)://[^?#"\'\s]*/[^?#"\'\s]*)[?#"\'\s]*' #r'^((https?|ftps?):\/\/[^?#"\'\s]*\/[^?#"\'\s]*)[\\?#"\'\s]*'
                 url = list(list({result for result in re.findall(patern, url)})[0])[0]
                 self.prepare_and_send_request(url + ext, "")
             except:
@@ -550,7 +558,7 @@ class PtWebDiscover():
                 self.prepare_and_send_request(url[:-1] + ext, "")
             else:
                 try:
-                    patern = '((https?|ftps?):\/\/[^?#"\'\s]*\/[^?#"\'\s]*)\.[?#"\'\s]*'
+                    patern = r'((https?|ftps?)://[^?#"\'\s]*/[^?#"\'\s]*)\.[?#"\'\s]*' #r'((https?|ftps?):\/\/[^?#"\'\s]*\/[^?#"\'\s]*)\.[?#"\'\s]*'
                     url_without_ext = list(list({result for result in re.findall(patern, url)})[0])[0]
                     self.prepare_and_send_request(url_without_ext + ext, "")
                 except:
@@ -621,7 +629,7 @@ class PtWebDiscover():
 
     def output_tree(self, line_list: list[str]) -> None:
         urls = sorted(list(dict.fromkeys(list(line_list))))
-        slash_correction = 2 if re.match('^\w{2,5}:\/\/', urls[0]) else 0
+        slash_correction = 2 if re.match(r'^\w{2,5}://', urls[0]) else 0
         tree = treeshow.Tree()
         tree_show = treeshow.Treeshow(tree)
         json_tree = tree_show.url_list_to_json_tree(urls)
@@ -641,7 +649,7 @@ class PtWebDiscover():
             response = ptmisclib.load_url_from_web_or_temp(url, method, headers=headers, proxies=proxies, verify=False, redirects=True, auth=auth, cache=self.args.cache)
         except:
             self.ptjsonlib.end_error("Server not found", self.args.json)
-        if self.args.is_star or self.args.without_availability:
+        if self.args.is_star:
             return response
         if response.status_code == 404:
             self.ptjsonlib.end_error("Returned status code 404. Check url address.", self.args.json)
@@ -753,7 +761,6 @@ def get_help():
             ["-o",  "--output",                 "<filename>",       "Output to file"],
             ["-S",  "--save",                   "<directory>",      "Save content localy"],
             ["-wdc","--without_dns_cache",      "",                 "Do not use DNS cache (example for /etc/hosts records)"],
-            ["-wa", "--without_availability",   "",                 "Do not use target availability check"],
             ["-tg", "--target",                 "<ip or host>",     "Use this target when * is in domain"],
             ["-nr", "--not-redirect",           "",                 "Do not follow redirects"],
             ["-s",  "--silent",                 "",                 "Do not show statistics in realtime"],
@@ -801,7 +808,6 @@ def parse_args() -> ArgumentOptions:
     parser.add_argument("-T",  "--timeout", type=int, default=10000)
     parser.add_argument("-cl", "--content-length", type=int, default=1000)
     parser.add_argument("-wdc","--without_dns_cache", action="store_true")
-    parser.add_argument("-wa", "--without_availability", action="store_true")
     parser.add_argument("-H",  "--headers", type=ptmisclib.pairs, nargs="+")
     parser.add_argument("-a", "--user-agent", type=str, default="Penterep Tools")
     parser.add_argument("-c",  "--cookie", type=str, default="")
