@@ -83,7 +83,6 @@ ptwebdiscover -u https://www.example.com -w -sn "Page Not Found"
    -o    --output                  <filename>      Output to file
    -S    --save                    <directory>     Save content localy
    -wdc  --without_dns_cache                       Do not use DNS cache (example for /etc/hosts records)
-   -wa   --without_availability                    Do not use target availability check
    -tg   --target                  <ip or host>    Use this target when * is in domain
    -nr   --not-redirect                            Do not follow redirects
    -s    --silent                                  Do not show statistics in realtime

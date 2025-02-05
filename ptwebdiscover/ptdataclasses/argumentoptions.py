@@ -34,7 +34,6 @@ class ArgumentOptions:
     timeout: int
     content_length: int
     without_dns_cache: bool
-    without_availability: bool
     headers: list[tuple[str,str]]
     user_agent: str
     cookie: str
