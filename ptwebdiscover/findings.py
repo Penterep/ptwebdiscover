@@ -1,6 +1,6 @@
 from ptlibs.threads.arraylock import ThreadSafeArray
 
-from ptdataclasses.findingdetail import FindingDetail
+from .ptdataclasses.findingdetail import FindingDetail
 
 
 class Findings:

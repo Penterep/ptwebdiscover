@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from ptdataclasses.argumentoptions import ArgumentOptions
+from ..ptdataclasses.argumentoptions import ArgumentOptions
 
 
 @dataclass

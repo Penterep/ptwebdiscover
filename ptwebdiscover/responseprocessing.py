@@ -3,11 +3,11 @@ import re
 import requests
 
 import ptlibs.ptprinthelper as ptprinthelper
-from keyspace import Keyspace
+from .keyspace import Keyspace
 
-from ptdataclasses.processedargumentoptions import ProcessedArgumentOptions
-from utils.url import Url
-from findings import FindingDetail, Findings
+from .ptdataclasses.processedargumentoptions import ProcessedArgumentOptions
+from .utils.url import Url
+from .findings import FindingDetail, Findings
 
 class ResponseProcessor:
     

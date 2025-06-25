@@ -32,18 +32,18 @@ from io import TextIOWrapper
 from ptlibs import ptnethelper, ptcharsethelper, ptprinthelper, ptjsonlib, ptmisclib
 from ptlibs.threads import ptthreads, printlock, arraylock
 
-from ptdataclasses.argumentoptions import ArgumentOptions
-from ptdataclasses.processedargumentoptions import ProcessedArgumentOptions
-from ptdataclasses.findingdetail import FindingDetail
+from .ptdataclasses.argumentoptions import ArgumentOptions
+from .ptdataclasses.processedargumentoptions import ProcessedArgumentOptions
+from .ptdataclasses.findingdetail import FindingDetail
 
-from utils import treeshow
-from utils.url import Url
+from .utils import treeshow
+from .utils.url import Url
 
-from responseprocessing import ResponseProcessor
-from findings import Findings
-from keyspace import Keyspace
+from .responseprocessing import ResponseProcessor
+from .findings import Findings
+from .keyspace import Keyspace
 
-from _version import __version__
+from ._version import __version__
 
 
 class PtWebDiscover():
@@ -135,7 +135,7 @@ class PtWebDiscover():
 
 
     def cache_dns(self) -> None:
-        from utils import cachefile
+        from .utils import cachefile
 
 
     def set_header_cookies(self):
