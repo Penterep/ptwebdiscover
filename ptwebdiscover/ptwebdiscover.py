@@ -24,8 +24,10 @@ import time
 import sys; sys.path.append(__file__.rsplit("/", 1)[0])
 import urllib.parse
 import re
-import requests
+import glob
 import copy
+import requests
+from urllib.parse import urlparse
 
 from io import TextIOWrapper
 
@@ -45,21 +47,35 @@ from keyspace import Keyspace
 
 from _version import __version__
 
-
 class PtWebDiscover():
     def __init__(self, args: ArgumentOptions) -> None:
+        """
+        Initialize the PtWebDiscover instance with configuration, locks, and derived arguments.
+
+        This method processes the provided arguments to set up the scanning environment,
+        normalizes URLs, prepares headers, proxies, character sets, and extensions, and
+        validates incompatible argument combinations.
+
+        Args:
+            args (ArgumentOptions): Parsed and processed command-line arguments.
+        """
+        self.ptjsonlib                       = ptjsonlib.PtJsonLib()
+        self.ptthreads                       = ptthreads.PtThreads()
+        self.printlock                       = printlock.PrintLock()
+        self.arraylock                       = arraylock.ArrayLock()
+        self.use_json                        = args.json
         self.args: ProcessedArgumentOptions  = args
+        self.args.is_star: bool              = True if "*" in args.url else False
         self.args.timeout: int               = args.timeout / 1000
         self.args.content_length: int        = args.content_length * 1000
         self.args.delay: int                 = args.delay / 1000
-        self.args.is_star: bool              = True if "*" in args.url else False
         self.args.nochanged_url: str         = self.args.url
         self.args.url                        = ptnethelper.remove_slash_from_end_url(args.url) if not self.args.is_star else args.url
         self.args.url                        = Url(args.url).add_missing_scheme(self.args.scheme)
         self.args.target: str                = Url(args.target).add_missing_scheme(self.args.scheme)
         self.args.position, self.args.url    = self.get_star_position(self.args.url)
-        self.args.headers: dict              = ptnethelper.get_request_headers(args)
         self.args.proxies: dict              = {"http": args.proxy, "https": args.proxy}
+        self.args.headers: dict              = ptnethelper.get_request_headers(args)
         self.args.charset: list              = ptcharsethelper.get_charset(["lowercase"]) if not args.charsets and not args.wordlist else ptcharsethelper.get_charset(args.charsets)
         self.args.parse: bool                = args.parse or args.parse_only
         self.args.length_max: int            = args.length_max if args.length_max else 99 if args.wordlist else 6
@@ -72,11 +88,7 @@ class PtWebDiscover():
         self.args.is_star_in_domain          = True if self.args.is_star and self.args.position < len(self.domain_with_protocol)+1 else False
         self.urlpath                         = Url(self.args.url).get_path_from_url(with_l_slash=True, without_r_slash=True)
         self.args.auth                       = tuple(args.auth.split(":")) if args.auth else None
-        self.use_json                        = args.json
-        self.ptjsonlib                       = ptjsonlib.PtJsonLib()
-        self.ptthreads                       = ptthreads.PtThreads()
-        self.printlock                       = printlock.PrintLock()
-        self.arraylock                       = arraylock.ArrayLock()
+
         self.args.extensions                 = self.prepare_extensions(args) # must be placed after set of self.directories
         Findings.directories                 = arraylock.ThreadSafeArray([self.urlpath + "/"] if not self.args.is_star else [""])
         #self.ptthreads                      = ptthreads.PtThreads(args.errors)
@@ -88,6 +100,17 @@ class PtWebDiscover():
             self.ptjsonlib.end_error("Cannot use anchor '*' with -ne/--non-exist options", self.use_json)
 
     def run(self, args: ArgumentOptions) -> None:
+        """
+        Execute the web discovery process.
+
+        This is the main entry point for running the scan. It handles DNS caching,
+        cookie initialization, keyspace calculation, directory scanning, recursion,
+        backup searching, and final result reporting.
+
+        Args:
+            args (ArgumentOptions): Parsed and processed command-line arguments.
+        """
+
         if not args.without_dns_cache:
             self.cache_dns()
 
@@ -95,11 +118,10 @@ class PtWebDiscover():
             # TODO set cookies with star in url too
             self.set_header_cookies()
 
-        self.initialize_counters()
-        self.determine_keyspace(args)
-        self.print_configuration(args)
-        self.determine_keyspace_complete(args.parse_only)
-
+        self.initialize_counters()    #  Prepares timing and progress tracking.
+        self.determine_keyspace(args) # Calculates how many payloads (wordlist entries or brute-force combinations) will be tested.
+        self.print_configuration(args) # Outputs the current settings so the user can see what will be tested.
+        self.determine_keyspace_complete(args.parse_only) # Finalizes the keyspace count, or sets it to 1 in parse-only mode.
 
         if args.non_exist: # send request to non existing source
             self.check_status_for_non_existing_resource(args)
@@ -118,9 +140,19 @@ class PtWebDiscover():
 
         self.print_results()
 
-
     def check_status_for_non_existing_resource(self, args):
-        """Send request to non-existing resource on target server, if server returns status 200, PTV-WEB-INJECT-REFLEXURL will be added to vulnerabilities"""
+        """
+        Send request to non-existing resource on target server, if server returns status 200, PTV-WEB-INJECT-REFLEXURL will be added to vulnerabilities
+
+        Test server behavior for a non-existing resource.
+
+        Sends a request to a deliberately non-existent file and checks the response
+        status code. If the server incorrectly returns 200 OK, a vulnerability flag
+        is recorded.
+
+        Args:
+            args (ArgumentOptions): Parsed and processed command-line arguments.
+        """
         ptprinthelper.ptprint("Check status for not-existing resource", "TITLE", condition=not self.use_json, colortext=True)
 
         url = args.url + "/d8d9afas7d49f6a1dsf.php"
@@ -135,10 +167,21 @@ class PtWebDiscover():
 
 
     def cache_dns(self) -> None:
+        """
+        Cache DNS lookups for improved performance.
+
+        This function imports and initializes DNS cache handling utilities.
+        """
         from utils import cachefile
 
 
     def set_header_cookies(self):
+        """
+        Set the 'Cookie' header in the request headers.
+
+        Performs an availability check on the target URL and extracts cookies from
+        the server response, adding them to the request headers for subsequent requests.
+        """
         response = self.check_url_availability(self.args.url, self.args.proxies, self.args.headers, self.args.auth, self.args.method, self.args.position)
         self.args.headers["Cookie"] = self.get_and_set_cookies(response)
 
@@ -150,18 +193,13 @@ class PtWebDiscover():
 
     def determine_keyspace(self, args: ArgumentOptions) -> None:
         """
-        Determines the keyspace based on the provided arguments.
+        Determine the total keyspace of possible payloads to test.
 
-        If a wordlist is provided, the keyspace is derived from the wordlist.
-        Otherwise, it is generated using the specified charset, length constraints,
-        and the number of extensions.
+        If a wordlist is provided, the keyspace is derived from it. Otherwise, it is
+        generated from the provided charset, length constraints, and file extensions.
 
         Args:
-            args (ArgumentOptions): The arguments containing wordlist, charset, 
-                                    length constraints, and extensions.
-
-        Returns:
-            None
+            args (ArgumentOptions): Parsed and processed command-line arguments.
         """
         if args.wordlist:
             Keyspace.space, _ = self.try_prepare_wordlist(args)
@@ -170,6 +208,12 @@ class PtWebDiscover():
 
 
     def print_configuration(self, args: ArgumentOptions) -> None:
+        """
+        Print the scan configuration and settings to the output.
+
+        Args:
+            args (ArgumentOptions): Parsed and processed command-line arguments.
+        """
         ptprinthelper.ptprint( ptprinthelper.out_title_ifnot("Settings overview", self.args.json))
         ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"URL................: {self.args.nochanged_url}", "INFO", self.args.json))
         ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"Discovery-type.....: Brute force", "INFO", self.args.json or args.wordlist or args.parse_only or args.backups_only))
@@ -196,12 +240,27 @@ class PtWebDiscover():
 
 
     def determine_keyspace_complete(self, parse_only: bool) -> None:
+        """
+        Finalize the complete keyspace size.
+
+        Sets the complete keyspace equal to the main keyspace, unless in parse-only mode,
+        in which case it is set to 1.
+
+        Args:
+            parse_only (bool): Whether parse-only mode is active.
+        """
         Keyspace.space_complete = Keyspace.space
         if parse_only:
             Keyspace.space_complete = 1
 
 
     def process_directory(self, args: ArgumentOptions) -> None:
+        """
+        Process a single directory by performing discovery using brute force or wordlists.
+
+        Args:
+            args (ArgumentOptions): Parsed and processed command-line arguments.
+        """
         self.counter = 0
         self.start_dict_time = time.time()
         ptprinthelper.clear_line_ifnot(condition = self.args.json)
@@ -228,23 +287,36 @@ class PtWebDiscover():
             combinations = ptcharsethelper.get_combinations(self.args.charset, self.args.length_min, self.args.length_max)
             self.ptthreads.threads(combinations, self.bruteforce_discover, self.args.threads)
 
-
     def process_backups(self):
+        """
+        Search for possible backup files in discovered resources.
+        """
         Findings.findings2 = Findings.findings.copy()
         self.prepare_backup()
         ptprinthelper.clear_line_ifnot(condition = self.args.json)
         ptprinthelper.ptprint( ptprinthelper.out_title_ifnot("Search for backups", self.args.json))
         self.ptthreads.threads(Findings.findings2, self.search_backups, self.args.threads)
+        #ptprinthelper.ptprint( ptprinthelper.out_title_ifnot("-------------", self.args.json))
         if self.args.recurse:
             self.process_notvisited_urls()
 
 
     def process_all_backups(self):
+        """
+        Search for complete backups of the entire target website.
+        """
         self.prepare_backup()
         self.search_for_backup_of_all(self.domain)
 
 
     def print_results(self):
+        """
+        Print or export the final scan results.
+
+        Outputs discovered URLs, details, and technologies in either human-readable
+        or JSON format.
+        """
+
         if self.use_json:
             nodes: list = self.ptjsonlib.parse_urls2nodes(Findings.findings)
             self.ptjsonlib.add_nodes(nodes)
@@ -256,6 +328,12 @@ class PtWebDiscover():
 
 
     def dictionary_discover(self, line: str) -> None:
+        """
+        Perform dictionary-based discovery using the provided wordlist entry.
+
+        Args:
+            line (str): A single entry from the wordlist (optionally with technology info).
+        """
         for extension in self.args.extensions:
             self.counter += 1
             self.counter_complete += 1
@@ -274,6 +352,12 @@ class PtWebDiscover():
 
 
     def bruteforce_discover(self, combination: str) -> None:
+        """
+        Perform brute force discovery using a generated character combination.
+
+        Args:
+            combination (str): A string combination from the charset keyspace.
+        """
         if not self.args.case_insensitive and "capitalize" in self.args.charsets:
             combination = combination.capitalize()
         for extension in self.args.extensions:
@@ -287,6 +371,11 @@ class PtWebDiscover():
 
 
     def process_notvisited_urls(self) -> None:
+        """
+        Process all URLs that have been discovered but not yet visited.
+
+        In parse mode, this continues recursively discovering new URLs.
+        """
         #TODO Run brute force or directory for every new directory
         if self.args.parse:
             ptprinthelper.clear_line_ifnot(condition = self.args.json)
@@ -298,6 +387,12 @@ class PtWebDiscover():
 
 
     def get_notvisited_urls(self) -> list[str]:
+        """
+        Get a list of URLs that have been discovered but not yet visited.
+
+        Returns:
+            list[str]: A list of unvisited URLs.
+        """
         not_visited_urls = []
         for url in Findings.findings:
             if not Url(url).is_url_dictionary() and url not in Findings.visited:
@@ -308,16 +403,39 @@ class PtWebDiscover():
 
 
     def process_notvisited(self, url: str) -> None:
+        """
+        Visit and process a single unvisited URL.
+
+        Args:
+            url (str): The URL to visit and process.
+        """
         self.prepare_and_send_request(url, "")
 
 
     def prepare_and_send_request(self, url: str, combination: str, technology:str = None) -> None:
+        """
+        Prepare and send a request to a target URL, then process the response.
+
+        Args:
+            url (str): The full request URL.
+            combination (str): The tested string combination or wordlist entry.
+            technology (str, optional): Technology tag associated with the request.
+        """
         response = self.try_prepare_and_send_request(url)
         if response.status_code:
             self.process_response(url, response, combination, technology)
 
 
     def try_prepare_and_send_request(self, url: str) -> requests.Response | None:
+        """
+        Attempt to send a request to the given URL while tracking scan progress.
+
+        Args:
+            url (str): The target URL.
+
+        Returns:
+            requests.Response | None: The HTTP response or None if the request failed.
+        """
         time_to_finish_complete = self.get_time_to_finish()
         dirs_todo = len(Findings.directories) - self.directory_finished - 1
         dir_no = "(D:" + str(dirs_todo) + " / " + str(int(self.counter / Keyspace.space * 100)) + "%)" if dirs_todo else ""
@@ -333,6 +451,12 @@ class PtWebDiscover():
 
 
     def get_time_to_finish(self):
+        """
+        Estimate the remaining time for the scan to complete.
+
+        Returns:
+            int: Estimated remaining time in seconds.
+        """
         if self.counter == 0 or self.counter_complete == 0:
             time_to_finish_complete = 0
         else:
@@ -341,12 +465,31 @@ class PtWebDiscover():
 
 
     def visit_send_request(self, url: str) -> requests.Response:
+        """
+        Send an HTTP request and record the visited URL.
+
+        Args:
+            url (str): The target URL.
+
+        Returns:
+            requests.Response: The HTTP response.
+        """
+
         response = self.send_request(url)
         Findings.visited.append(url)
         return response
 
-
     def send_request(self, url: str) -> requests.Response:
+        """
+        Send an HTTP request with configured method, headers, and proxy.
+
+        Args:
+            url (str): The target URL.
+
+        Returns:
+            requests.Response: The HTTP response.
+        """
+
         headers = copy.deepcopy(self.args.headers)
         if self.args.target:
             host = urllib.parse.urlparse(url).netloc
@@ -357,6 +500,15 @@ class PtWebDiscover():
 
 
     def process_response(self, request_url: str, response: requests.Response, combination: str, technology:str = None) -> None:
+        """
+        Process an HTTP response, extract information, and record findings.
+
+        Args:
+            request_url (str): The request URL.
+            response (requests.Response): The HTTP response object.
+            combination (str): The tested string or combination.
+            technology (str, optional): Technology tag if known.
+        """
         if self.is_processable(response):
             response_processor = ResponseProcessor(self.domain_with_protocol, self.domain, self.args)
             if self.args.save and response_processor.content_shorter_than_maximum(response):
@@ -384,6 +536,15 @@ class PtWebDiscover():
 
 
     def is_processable(self, response: requests.Response):
+        """
+        Determine if the response should be processed based on status codes or content.
+
+        Args:
+            response (requests.Response): The HTTP response.
+
+        Returns:
+            bool: True if processable, False otherwise.
+        """
         return (
             (not self.args.string_in_response and not self.args.string_not_in_response and response.status_code not in self.args.status_codes)
             or (self.args.string_in_response and self.args.string_in_response in response.text)
@@ -392,6 +553,12 @@ class PtWebDiscover():
 
 
     def check_posibility_testing(self) -> bool:
+        """
+        Test if discovery is possible in the current directory.
+
+        Returns:
+            bool: True if possible, False otherwise.
+        """
         if self.args.is_star_in_domain:
             return True
         else:
@@ -406,6 +573,11 @@ class PtWebDiscover():
 
 
     def check_args_combinations(self) -> None:
+        """
+        Validate that provided argument combinations are compatible.
+
+        Raises errors for unsupported combinations (e.g., using '*' with backups).
+        """
         if self.args.is_star:
             if self.args.backups or self.args.backups_only:
                 self.ptjsonlib.end_error("Cannot find backups with '*' character in url", self.args.json)
@@ -426,12 +598,27 @@ class PtWebDiscover():
 
 
     def prepare_not_directories(self, not_directories: list[str]) -> None:
+        """
+        Normalize and store directories to exclude from scanning.
+
+        Args:
+            not_directories (list[str]): List of directories to exclude.
+        """
         for nd in not_directories:
             nd = nd if nd.startswith("/") else "/"+nd
             nd = nd if nd.endswith("/") else nd+"/"
 
 
     def prepare_extensions(self, args: ArgumentOptions) -> list[str]:
+        """
+        Prepare the list of file extensions to test.
+
+        Args:
+            args (ArgumentOptions): Parsed and processed command-line arguments.
+
+        Returns:
+            list[str]: List of file extensions.
+        """
         exts = ["", "/"] if self.args.directory else []
         if args.extensions_file:
             if args.extensions_file == True:
@@ -450,6 +637,15 @@ class PtWebDiscover():
 
 
     def try_prepare_wordlist(self, args: ArgumentOptions) -> tuple[int, list[str]]:
+        """
+        Safely prepare a wordlist, handling file errors.
+
+        Args:
+            args (ArgumentOptions): Parsed and processed command-line arguments.
+
+        Returns:
+            tuple[int, list[str]]: (keyspace size, prepared wordlist).
+        """
         try:
             return self.prepare_wordlist(args)
         except FileNotFoundError as e:
@@ -459,6 +655,16 @@ class PtWebDiscover():
 
 
     def prepare_wordlist(self, args: ArgumentOptions) -> tuple[int, list[str]]:
+        """
+        Load and process the wordlist(s) according to charset and filters.
+
+        Args:
+            args (ArgumentOptions): Parsed and processed command-line arguments.
+
+        Returns:
+            tuple[int, list[str]]: (keyspace size, prepared wordlist).
+        """
+
         wordlist_complete = [""]
         for wl in args.wordlist:
             with open(wl, encoding='utf-8', errors='ignore') as f:
@@ -480,6 +686,15 @@ class PtWebDiscover():
 
 
     def get_star_position(self, url:str) -> tuple[int, str]:
+        """
+        Get the position of '*' in a URL and remove it.
+
+        Args:
+            url (str): Input URL.
+
+        Returns:
+            tuple[int, str]: (position index, URL without '*').
+        """
         if "*" in url:
             position = url.find("*")
             url = url.replace(url[position], "")
@@ -489,6 +704,9 @@ class PtWebDiscover():
 
 
     def prepare_backup(self) -> None:
+        """
+        Prepare backup-related extensions and counters for backup file discovery.
+        """
         self.backup_exts       = [".bak", ".old", ".zal", ".zip", ".rar", ".tar", ".tar.gz", ".tgz", ".7z"]
         self.backup_all_exts   = [".zip", ".rar", ".tar", ".tar.gz", ".tgz", ".7z", ".sql", ".sql.gz"]
         self.delimeters        = ["", "_", ".", "-"]
@@ -500,6 +718,13 @@ class PtWebDiscover():
 
 
     def search_backups(self, url: str) -> None:
+        """
+        Search for backup versions of a specific resource.
+
+        Args:
+            url (str): The base resource URL.
+        """
+        #ptprinthelper.ptprint( ptprinthelper.out_title_ifnot("-------------", self.args.json))
         try:
             response = ptmisclib.load_url_from_web_or_temp(url+"abc12321cba", self.args.method, headers=self.args.headers, proxies=self.args.proxies, verify=False, redirects=False, auth=self.args.auth, cache=self.args.cache)
             if ResponseProcessor(self.domain_with_protocol, self.domain, self.args).is_response(response) and not str(response.status_code).startswith("4"):
@@ -512,8 +737,13 @@ class PtWebDiscover():
             self.search_for_backup_of_source(url, backup_ext, old_ext=True,  char_only=False)
             self.search_for_backup_of_source(url, backup_ext, old_ext=False, char_only=False)
 
-
     def search_for_backup_of_all(self, domain: str) -> None:
+        """
+        Search for backups of the entire domain.
+
+        Args:
+            domain (str): The target domain.
+        """
         ptprinthelper.clear_line_ifnot(condition = self.args.json)
         ptprinthelper.ptprint( ptprinthelper.out_title_ifnot("Search for completed backups of the website", self.args.json))
         self.start_dict_time = time.time()
@@ -534,12 +764,27 @@ class PtWebDiscover():
 
 
     def search_for_backup_of_all_exts(self, ext: str) -> None:
+        """
+        Search for complete site backups with a specific extension.
+
+        Args:
+            ext (str): The backup file extension.
+        """
         self.counter += 1
         self.counter_complete += 1
         self.prepare_and_send_request(self.domain_with_protocol + "/" + self.domain_back_name + ext, "")
 
 
     def search_for_backup_of_source(self, url: str, ext: str, old_ext: bool, char_only: bool) -> None:
+        """
+        Search for backup versions of a specific source file.
+
+        Args:
+            url (str): The base file URL.
+            ext (str): The backup file extension or delimiter.
+            old_ext (bool): Whether to search using the original extension.
+            char_only (bool): Whether the ext argument is a delimiter/character only.
+        """
         self.counter += 1
         self.counter_complete += 1
         if char_only:
@@ -566,6 +811,15 @@ class PtWebDiscover():
 
 
     def output_result(self, findings: list[str], findings_details: list[FindingDetail], technologies: list[str]) -> None:
+        """
+        Output discovered findings and technologies.
+
+        Args:
+            findings (list[str]): List of discovered URLs.
+            findings_details (list[FindingDetail]): Detailed findings with headers.
+            technologies (list[str]): List of detected technologies.
+        """
+
         ptprinthelper.clear_line_ifnot(condition=self.args.json)
         if findings:
             if self.args.without_domain:
@@ -583,6 +837,13 @@ class PtWebDiscover():
 
 
     def output_list(self, line_list: list[str], line_list_details: list[FindingDetail] = []) -> None:
+        """
+        Output a list of findings to console and optionally to file.
+
+        Args:
+            line_list (list[str]): List of findings.
+            line_list_details (list[FindingDetail], optional): Detailed findings.
+        """
         line_list = sorted(list(dict.fromkeys(list(line_list))))
         output_file = None
         output_file_detail = None
@@ -596,8 +857,16 @@ class PtWebDiscover():
             if self.args.with_headers:
                 output_file_detail.close()
 
-
     def output_lines(self, lines: list[str], line_list_details: list[FindingDetail], output_file: TextIOWrapper, output_file_detail: TextIOWrapper) -> None:
+        """
+        Write findings and their details to output.
+
+        Args:
+            lines (list[str]): List of findings.
+            line_list_details (list[FindingDetail]): Details for each finding.
+            output_file (TextIOWrapper): File object for basic output.
+            output_file_detail (TextIOWrapper): File object for detailed output.
+        """
         for line in lines:
             is_detail = None
             if self.args.with_headers:
@@ -628,6 +897,12 @@ class PtWebDiscover():
 
 
     def output_tree(self, line_list: list[str]) -> None:
+        """
+        Output findings in a tree structure.
+
+        Args:
+            line_list (list[str]): List of discovered URLs.
+        """
         urls = sorted(list(dict.fromkeys(list(line_list))))
         slash_correction = 2 if re.match(r'^\w{2,5}://', urls[0]) else 0
         tree = treeshow.Tree()
@@ -640,8 +915,21 @@ class PtWebDiscover():
             output_file.close()
             tree.save2file(self.args.output)
 
-
     def check_url_availability(self, url: str, proxies: dict[str,str], headers: dict[str,str], auth: tuple[str,str], method: str, position: int) -> requests.Response:
+        """
+        Check if the target URL is reachable and meets expected status conditions.
+
+        Args:
+            url (str): The target URL.
+            proxies (dict[str, str]): Proxy settings.
+            headers (dict[str, str]): HTTP headers.
+            auth (tuple[str, str]): HTTP Basic authentication credentials.
+            method (str): HTTP method.
+            position (int): Position of wildcard or insertion point.
+
+        Returns:
+            requests.Response: The HTTP response.
+        """
         extract = urllib.parse.urlparse(url)
         if not (extract.scheme == "http" or extract.scheme == "https"):
             self.ptjsonlib.end_error("Check scheme in url (allowed schemes are http:// and https://)", self.args.json)
@@ -672,6 +960,16 @@ class PtWebDiscover():
 
 
     def change_schema_when_redirect_from_http_to_https(self, response: requests.Response, old_extract: urllib.parse.ParseResult) -> tuple[str,int]:
+        """
+        Adjust URL schema if redirected from HTTP to HTTPS.
+
+        Args:
+            response (requests.Response): The redirect response.
+            old_extract (urllib.parse.ParseResult): Parsed original URL.
+
+        Returns:
+            tuple[str, int]: Updated URL and position index.
+        """
         target_location = response.headers["Location"]
         new_extract = urllib.parse.urlparse(target_location)
         if old_extract.scheme == "http" and new_extract.scheme == "https" and old_extract.netloc == new_extract.netloc:
@@ -685,6 +983,15 @@ class PtWebDiscover():
 
 
     def get_and_set_cookies(self, response: requests.Response) -> str:
+        """
+        Extract cookies from a response and append configured cookies.
+
+        Args:
+            response (requests.Response): HTTP response object.
+
+        Returns:
+            str: Combined cookie string.
+        """
         cookies = ""
         try:
             if not self.args.refuse_cookies:
@@ -719,9 +1026,9 @@ def get_help():
         ]},
         {"options": [
             ["-u",  "--url",                    "<url>",            "URL for test (usage of a star character as anchor)"],
-            ["-ch", "--charsets",               "<charsets>",       "Specify charset fro brute force (example: lowercase,uppercase,numbers,[custom_chars])"],
-            ["-src", "--source",               "<source>",          "Check for presence of only specified <source> (eg. -src robots.txt)"],
+            ["-ch", "--charsets",               "<charsets>",       "Specify charset for brute force (example: lowercase,uppercase,numbers,[custom_chars])"],
             ["",    "",                         "",                 "Modify wordlist (lowercase,uppercase,capitalize)"],
+            ["-src", "--source",               "<source>",          "Check for presence of only specified <source> (eg. -src robots.txt)"],
             ["-lm", "--length-min",             "<length-min>",     "Minimal length of brute-force tested string (default 1)"],
             ["-lx", "--length-max",             "<length-max>",     "Maximal length of brute-force tested string (default 6 bf / 99 wl"],
             ["-w",  "--wordlist",               "<filename>",       "Use specified wordlist(s)"],
@@ -779,8 +1086,7 @@ def parse_args() -> ArgumentOptions:
     exclusive = parser.add_mutually_exclusive_group()
     exclusive.add_argument("-w",  "--wordlist", type=str, nargs="+")
     exclusive.add_argument("-src", "--source", type=str, nargs="+")
-
-    parser.add_argument("-u",  "--url", type=str, required=True)
+    parser.add_argument("-u",  "--url", type=str, required=False)
     parser.add_argument("-ch", "--charsets", type=str, nargs="+", default=[])
     parser.add_argument("-lm", "--length-min", type=int, default=1)
     parser.add_argument("-lx", "--length-max", type=int)
@@ -838,8 +1144,19 @@ def parse_args() -> ArgumentOptions:
         ptprinthelper.help_print(get_help(), SCRIPTNAME, __version__)
         sys.exit(0)
 
+
     args = parser.parse_args()
-    return ArgumentOptions(**vars(args))
+
+    # Handle -src as full URL
+    if args.source and isinstance(args.source, list) and args.source[0].startswith(("http://", "https://")):
+        parsed = urlparse(args.source[0])
+        # Set URL from src
+        args.url = f"{parsed.scheme}://{parsed.netloc}"
+        # Set relative path as src
+        args.source = [parsed.path.lstrip("/")]
+        return ArgumentOptions(**vars(args))
+
+    return args
 
 
 def main():
