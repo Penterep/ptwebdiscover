@@ -14,7 +14,7 @@ class ArgumentOptions:
     suffix: str
     begin_with: str
     backups: bool
-    backups_only: bool
+    backup_all: bool
     extensions: list[str]
     extensions_file: str
     recurse: bool
