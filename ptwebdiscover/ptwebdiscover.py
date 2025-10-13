@@ -26,6 +26,7 @@ import urllib.parse
 import re
 import copy
 import requests
+import shutil
 
 from urllib.parse import urlparse
 
@@ -468,7 +469,22 @@ class PtWebDiscover():
                 self.printlock.lock_print( ptprinthelper.out_ifnot(url + " : " + str(e), "ERROR", self.args.json), clear_to_eol=True)
             raise e
             #return None
-        self.printlock.lock_print(f"{str(datetime.timedelta(seconds=time_to_finish_complete))} ({int(self.counter_complete / Keyspace.space_complete * 100)}%) {dir_no} {url}", end="\r", condition = not(self.args.json or self.args.silent), clear_to_eol=True)
+
+        term_width = shutil.get_terminal_size((100, 20)).columns
+        time_str = str(datetime.timedelta(seconds=time_to_finish_complete))
+        percent = int(self.counter_complete / Keyspace.space_complete * 100)
+        fixed_part = f"{time_str} ({percent}%) {dir_no} "
+
+        available_for_url = term_width - len(fixed_part) - 2
+        short_url = helpers.shorten_url_middle(url, available_for_url)
+        line = f"{fixed_part}{short_url}"
+        self.printlock.lock_print(
+            line,
+            end="\r",
+            condition=not (self.args.json or self.args.silent),
+            clear_to_eol=True
+        )
+        #self.printlock.lock_print(f"{str(datetime.timedelta(seconds=time_to_finish_complete))} ({int(self.counter_complete / Keyspace.space_complete * 100)}%) {dir_no} {url}", end="\r", condition = not(self.args.json or self.args.silent), clear_to_eol=True)
         time.sleep(self.args.delay)
         return response
 
