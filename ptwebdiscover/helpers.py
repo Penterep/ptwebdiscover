@@ -7,6 +7,9 @@ from ptdataclasses.argumentoptions import ArgumentOptions
 
 from ptlibs import ptprinthelper
 
+from urllib.parse import urlparse
+
+
 def get_star_position( url:str) -> tuple[int, str]:
     """
     Get the position of '*' in a URL and remove it.
@@ -25,6 +28,57 @@ def get_star_position( url:str) -> tuple[int, str]:
         position = len(url) #url.rfind("/") + 1 # len(url)
         return (position, url)
 
+def shorten_url_middle(url: str, max_len: int) -> str:
+    """
+    Shorten a URL by keeping the domain, start, and end of the path, inserting '...' in the middle if needed.
+    
+    Rules:
+    1. If the full URL fits within max_len, return it unchanged.
+    2. If it doesn't fit, keep the first and last path segments with '...' between.
+    3. If even that is too long, truncate from the middle of the path as a fallback.
+    """
+    if not url:
+        return ""
+
+    parsed = urlparse(url)
+    
+    # Build prefix (scheme + domain)
+    if parsed.netloc:
+        prefix = f"{parsed.scheme}://{parsed.netloc}" if parsed.scheme else parsed.netloc
+    elif parsed.scheme:
+        prefix = f"{parsed.scheme}://"
+    else:
+        prefix = ""
+
+    path = (parsed.path or "").strip("/")
+    segments = path.split("/") if path else []
+
+    # Full URL
+    full_url = f"{prefix}/{path}" if prefix else path
+    if len(full_url) <= max_len:
+        return full_url  # fits, no shortening needed
+
+    # If no path, fallback to prefix only
+    if not segments:
+        return prefix[:max_len]
+
+    # First and last segments
+    first = segments[0]
+    last = segments[-1]
+
+    # Attempt first + ... + last
+    if len(segments) > 2:
+        candidate = f"{prefix}/{first}/.../{last}" if prefix else f"{first}/.../{last}"
+    else:
+        candidate = f"{prefix}/{first}/{last}" if len(segments) > 1 else f"{prefix}/{first}" if prefix else first
+
+    if len(candidate) <= max_len:
+        return candidate
+
+    # Fallback: truncate path from the end
+    remain = max(max_len - len(prefix) - 4, 1)  # 4 chars for '/...'
+    short_path = f"...{path[-remain:]}"
+    return f"{prefix}/{short_path}" if prefix else short_path
 def print_configuration( args: ArgumentOptions, keyspace) -> None:
     """
     Print the scan configuration and settings to the output.
