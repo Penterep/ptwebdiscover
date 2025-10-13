@@ -15,13 +15,13 @@ import urllib.request
 from datetime import datetime
 from urllib.error import URLError, HTTPError
 
+import socket
+from functools import lru_cache
+
 import idna
 import filelock
 from appdirs import user_cache_dir
 
-# dnspython imports for resolver and caching
-from dns import resolver
-from dns.resolver import Resolver, LRUCache, override_system_resolver
 
 class CacheFileError(Exception):
     """
@@ -289,100 +289,42 @@ def dns_cache_install():
         resolver.cache = LRUCache()
     override_system_resolver(resolver)
 
-def dns_cache_install(hosts_path="/etc/hosts"):
-    """
-    Installs a DNS resolver with LRU caching and /etc/hosts support.
-    Overrides dnspython's default resolver globally.
+dns_cache_install()    
 
-    :param str hosts_path: Path to hosts file (default /etc/hosts)
-    """
-    # Preserve existing ExceptionCachingResolver if available
+
+
+
+
+
+
+# --- Load /etc/hosts ---
+def load_hosts(hosts_path="/etc/hosts"):
+    hosts = {}
     try:
-        from dns_cache.resolver import ExceptionCachingResolver
-        from dns import resolver as dnspython_resolver_module
-        if not dnspython_resolver_module.default_resolver:
-            dnspython_resolver_module.default_resolver = ExceptionCachingResolver()
-        del dnspython_resolver_module
-    except ImportError:
+        with open(hosts_path) as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                parts = line.split()
+                if len(parts) >= 2:
+                    ip, *names = parts
+                    for name in names:
+                        hosts[name.lower()] = ip
+    except Exception:
         pass
+    return hosts
 
-    # Import dnspython resolver internals
-    try:
-        from dns.resolver import LRUCache, Resolver, override_system_resolver, _resolver, default_resolver
-    except ImportError:
-        return
+HOSTS_CACHE = load_hosts()
 
-    # Create our HostsAwareResolver
-    resolver_instance = HostsAwareResolver(hosts_path=hosts_path)
+# --- Patch socket.getaddrinfo ---
+_original_getaddrinfo = socket.getaddrinfo
 
-    # Preserve existing LRU cache if available
-    if default_resolver and getattr(default_resolver, "cache", None):
-        resolver_instance._resolver.cache = default_resolver.cache
-    elif _resolver and getattr(_resolver, "cache", None):
-        resolver_instance._resolver.cache = _resolver.cache
+@lru_cache(maxsize=1024)
+def cached_getaddrinfo(host, port, *args, **kwargs):
+    lname = host.lower()
+    if lname in HOSTS_CACHE:
+        return _original_getaddrinfo(HOSTS_CACHE[lname], port, *args, **kwargs)
+    return _original_getaddrinfo(host, port, *args, **kwargs)
 
-    # Override system resolver globally
-    override_system_resolver(resolver_instance)
-    resolver.default_resolver = resolver_instance
-
-
-class HostsAwareResolver:
-    """
-    DNS resolver that:
-        1. Checks /etc/hosts first (configurable path).
-        2. Falls back to dnspython Resolver with LRU cache.
-    """
-    def __init__(self, hosts_path="/etc/hosts"):
-        """
-        :param str hosts_path: Path to hosts file (default /etc/hosts)
-        """
-        self._resolver = Resolver()
-        self._resolver.cache = LRUCache()
-        self._hosts_cache = self._load_hosts(hosts_path)
-
-    def _load_hosts(self, hosts_path):
-        """
-        Load hosts file into a dictionary mapping lowercase hostnames to IPs.
-
-        :param str hosts_path: path to hosts file
-        :return: dict of hostnames -> IP addresses
-        """
-        hosts = {}
-        try:
-            with open(hosts_path, "r") as f:
-                for line in f:
-                    line = line.strip()
-                    if not line or line.startswith("#"):
-                        continue
-                    parts = line.split()
-                    if len(parts) >= 2:
-                        ip, *names = parts
-                        for name in names:
-                            hosts[name.lower()] = ip
-        except Exception:
-            # Silently ignore if file cannot be read
-            pass
-        return hosts
-
-    def resolve(self, name, rdtype="A", *args, **kwargs):
-        """
-        Resolve a hostname to IP addresses.
-
-        :param str name: hostname to resolve
-        :param str rdtype: DNS record type (default "A")
-        :return: iterable of IP addresses
-        """
-        lname = name.lower()
-        if lname in self._hosts_cache:
-            # Simulate a dnspython answer object
-            class Answer:
-                def __init__(self, ips):
-                    self.ips = ips
-                def __iter__(self):
-                    return iter(self.ips)
-            return Answer([self._hosts_cache[lname]])
-        return self._resolver.resolve(name, rdtype, *args, **kwargs)
-
-
-
-dns_cache_install()
+socket.getaddrinfo = cached_getaddrinfo
