@@ -21,7 +21,7 @@ setuptools.setup(
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)"
     ],
     python_requires = '>=3.9',
-    install_requires=["ptlibs>=1.0.7,<2", "appdirs", "treelib", "filelock"],
+    install_requires=["ptlibs>=1.0.7,<2", "bs4", "treelib", "filelock"],
     entry_points = {'console_scripts': ['ptwebdiscover = ptwebdiscover.ptwebdiscover:main']},
     include_package_data= True,
     long_description=long_description,

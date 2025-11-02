@@ -97,9 +97,8 @@ ptwebdiscover -u https://www.example.com -w -sn "Page Not Found"
 ## Dependencies
 ```
 ptlibs
-appdirs
+bs4
 treelib
-filelock
 ```
 
 
