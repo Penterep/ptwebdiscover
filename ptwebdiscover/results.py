@@ -1,29 +1,28 @@
-
-
-from ptlibs import ptnethelper, ptcharsethelper, ptprinthelper, ptjsonlib, ptmisclib
+import re
+import helpers
+from ptlibs import ptprinthelper
 from ptlibs.ptprinthelper import ptprint
-
+from utils import treeshow
 from utils.url import Url
-
 from ptdataclasses.findingdetail import FindingDetail
 from io import TextIOWrapper
 
 
 def output_result(args, findings: list[str], findings_details: list[FindingDetail], technologies: list[str]) -> None:
     """
-    Output discovered findings and technologies.
-
+    Output the scan results in either tree or list format.
+    Result is always printed to console in human-readable format. When JSON output is selected, this function is not called.
     Args:
+        args: The command-line arguments.
         findings (list[str]): List of discovered URLs.
-        findings_details (list[FindingDetail]): Detailed findings with headers.
-        technologies (list[str]): List of detected technologies.
+        findings_details (list[FindingDetail]): List of detailed findings.
+        technologies (list[str]): List of discovered technologies.
     """
-
     ptprinthelper.clear_line_ifnot(condition=args.json)
     if findings:
         if args.without_domain:
-            domain_with_protocol = Url(args.url).get_domain_from_url(level=True, with_protocol=True)
-            findings = [url.replace(domain_with_protocol, "") for url in findings]
+            domain_with_scheme = Url(args.url).get_domain_from_url(level=True, with_protocol=True)
+            findings = [url.replace(domain_with_scheme, "") for url in findings]
         ptprinthelper.ptprint( ptprinthelper.out_title_ifnot("Discovered sources", args.json))
         if args.tree:
             output_tree(args, findings)
@@ -103,12 +102,74 @@ def output_lines(args, lines: list[str], line_list_details: list[FindingDetail],
                     except:
                         pass
             ptprinthelper.ptprint( ptprinthelper.out_ifnot("\n", condition=args.json))
+            
         if not is_detail:
             ptprinthelper.ptprint( ptprinthelper.out_ifnot(line, condition=args.json))
-            #TODO repair JSON
-            if args.json:
-                print(line)
+
+            # Write to output file if specified
             if args.output:
                 output_file.write(line + "\r\n")
                 if args.with_headers:
                     output_file_detail.write(line + "\r\n")
+
+
+def print_results(self):
+    """
+    Print or export the final scan results.
+
+    Outputs discovered URLs, details, and technologies in either human-readable
+    or JSON format.
+    """
+
+    # Add vulnerabilities to JSON if specified in arguments -vuln-yes or -vuln-no
+    # Backups
+    if self.args.backups:
+        if self.findings.backups_urls and self.args.vuln_yes:
+            self.ptjsonlib.add_vulnerability(self.args.vuln_yes)
+        if not self.findings.backups_urls and self.args.vuln_no:
+            self.ptjsonlib.add_vulnerability(self.args.vuln_no)
+    # Findings
+    else:
+        if len(self.findings.findings) > 1 and self.args.vuln_yes:  # more than only root directory
+            self.ptjsonlib.add_vulnerability(self.args.vuln_yes)
+        if len(self.findings.findings) < 2 and self.args.vuln_no:
+            self.ptjsonlib.add_vulnerability(self.args.vuln_no)
+
+    # Only URLs by extensions specified in --extensions_output will be printed
+    if self.args.extensions_output:
+        self.findings.findings = helpers.filter_urls_by_extension(self.findings.findings, self.args.extensions_output)
+
+    # Output results in JSON or human-readable format
+    if self.args.json:
+        nodes: list = self.ptjsonlib.parse_urls2nodes(self.findings.findings)
+        self.ptjsonlib.add_nodes(nodes)
+        self.ptjsonlib.set_status("finished")
+        ptprinthelper.ptprint(self.ptjsonlib.get_result_json(), "", self.args.json)
+    else:
+        output_result(self.args, self.findings.findings, self.findings.details, self.findings.technologies)
+
+    # Print foreign domain URLs if the option is enabled
+    if self.args.foreign_domains:
+        if self.findings.foreign_domain_urls:
+            ptprinthelper.ptprint( ptprinthelper.out_title_ifnot("Foreign domain URLs found", self.args.json), newline_above=True)
+            for url in self.findings.foreign_domain_urls:
+                ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"{url}", "", self.args.json))
+
+def print_warnings(self) -> None:
+    if self.findings.directory_listing_urls or self.findings.long_content_in_redirect_urls or self.findings.backups_urls:
+        ptprinthelper.ptprint( ptprinthelper.out_ifnot("Warning: Next potential problems found:", "WARNING", condition=self.args.json, colortext=True))
+        if self.findings.directory_listing_urls:
+            ptprinthelper.ptprint( ptprinthelper.out_ifnot("Directory listing found at:", "WARNING", self.args.json), newline_above=True)
+            for url in self.findings.directory_listing_urls:
+                ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"    {url}", "", self.args.json))
+        if self.findings.long_content_in_redirect_urls:
+            ptprinthelper.ptprint( ptprinthelper.out_ifnot("Long content found in redirects at:", "WARNING", self.args.json), newline_above=True)
+            for url in self.findings.long_content_in_redirect_urls:
+                ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"    {url}", "", self.args.json))
+        if self.findings.backups_urls:
+            ptprinthelper.ptprint( ptprinthelper.out_ifnot("Backups found at:", "WARNING", self.args.json), newline_above=True)
+            for url in self.findings.backups_urls:
+                ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"    {url}", "", self.args.json))
+
+def print_finish_message(self) -> None:
+    ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"Finished in {self.counters.get_elapsed_time()} - discovered: {len(self.findings.findings)} items", "INFO", self.args.json), newline_above=True)

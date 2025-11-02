@@ -1,19 +1,13 @@
-
-
+import tempfile
 import argparse
 import sys
 import glob
 import os
 import re
-
 from ptlibs import ptnethelper, ptcharsethelper, ptprinthelper, ptjsonlib, ptmisclib
 from ptlibs.ptprinthelper import ptprint
-from ptlibs.threads import ptthreads, printlock, arraylock
-
 from ptdataclasses.argumentoptions import ArgumentOptions
-
 from utils.url import Url
-
 from _version import __version__
 
 def get_help():
@@ -26,26 +20,27 @@ def get_help():
             "For proxy authorization use -p http://username:password@address:port"]},
         {"usage_example": [
             "ptwebdiscover -u https://www.example.com",
-            "ptwebdiscover -u https://www.example.com -ch lowercase,numbers,123abcdEFG*",
-            "ptwebdiscover -u https://www.example.com -lx 4",
+            "ptwebdiscover -u https://www.example.com -bf -ch lowercase,numbers,123abcdEFG*",
+            "ptwebdiscover -u https://www.example.com -bf -lx 4",
             "ptwebdiscover -u https://www.example.com -w",
             "ptwebdiscover -u https://www.example.com -w wordlist.txt",
             "ptwebdiscover -u https://www.example.com -w wordlist.txt --begin_with admin",
             "ptwebdiscover -u https://*.example.com -w wordlist.txt",
             "ptwebdiscover -u https://www.example.com/exam*.txt",
-            "ptwebdiscover -u https://www.example.com -e \"\" bak old php~ php.bak",
-            "ptwebdiscover -u https://www.example.com -E extensions.txt",
-            "ptwebdiscover -u https://www.example.com -w -sn \"Page Not Found\""
-            "ptwebdiscover -u https://www.example.com -arch",
-            "ptwebdiscover -u https://www.example.com -arch noparams checked",
+            "ptwebdiscover -u https://www.example.com -bf -e \"\" bak old php~ php.bak",
+            "ptwebdiscover -u https://www.example.com -w wordlist.txt-E extensions.txt",
+            "ptwebdiscover -u https://www.example.com -w wordlist.txt -sn \"Page Not Found\""
+            "ptwebdiscover -u https://www.example.com -arch"
         ]},
         {"options": [
+            ["-bf",  "--bruteforce",            "",                 "Enable brute force mode"],
             ["-u",  "--url",                    "<url>",            "URL for test (usage of a star character as anchor)"],
             ["-ch", "--charsets",               "<charsets>",       "Specify charset for brute force (example: lowercase,uppercase,numbers,[custom_chars])"],
             ["",    "",                         "",                 "Modify wordlist (lowercase,uppercase,capitalize)"],
             ["-scy", "--status-code-yes",       "",                 "Include only sources returned with provided status codes"],
             ["-scn", "--status-code-no",        "",                 "Not include sources returned with provided status codes"],
-            ["-src", "--source",                "<source>",         "Check for presence of only specified <source> (eg. -src robots.txt)"],
+            ["-src", "--source",                "<sources>",        "Check for presence of only specified <source> (eg. -src robots.txt)"],
+            ["-fp",  "--forbidden-paths",       "<paths>",          "Paths that should not be tested"],
             ["-lm", "--length-min",             "<length-min>",     "Minimal length of brute-force tested string (default 1)"],
             ["-lx", "--length-max",             "<length-max>",     "Maximal length of brute-force tested string (default 6 bf / 99 wl"],
             ["-w",  "--wordlist",               "<filename>",       "Use specified wordlist(s)"],
@@ -55,6 +50,7 @@ def get_help():
             ["-ci", "--case-insensitive",       "",                 "Case insensitive items from wordlist"],
             ["-e",  "--extensions",             "<extensions>",     "Add extensions behind a tested string (\"\" for empty extension)"],
             ["-E",  "--extension-file",         "<filename>",       "Add extensions from default or specified file behind a tested string."],
+            ["-eo",  "--extensions-output",     "<extensions>",     "Include only sources with specified extensions in output"],            
             ["-r",  "--recurse",                "",                 "Recursive browsing of found directories"],
             ["-md", "--max_depth",              "<integer>",        "Maximum depth during recursive browsing (default: 20)"],
             ["-b",  "--backups",                "",                 "Search for backups of disclosed files"],
@@ -81,22 +77,22 @@ def get_help():
             ["-wd", "--without-domain",         "",                 "Output of discovered sources without domain"],
             ["-wh", "--with-headers",           "",                 "Output of discovered sources with headers"],
             ["-ip", "--include-parameters",     "",                 "Include GET parameters and anchors to output"],
+            ["-fd", "--foreign-domains",       "",                  "Output of discovered sources with foreign domains"],
             ["-tr", "--tree",                   "",                 "Output as tree"],
             ["-o",  "--output",                 "<filename>",       "Output to file"],
             ["-S",  "--save",                   "<directory>",      "Save content localy"],
-            ["-wdc","--without_dns_cache",      "",                 "Do not use DNS cache (example for /etc/hosts records)"],
             ["-tg", "--target",                 "<ip or host>",     "Use this target when * is in domain"],
             ["-nr", "--not-redirect",           "",                 "Do not follow redirects"],
             ["-s",  "--silent",                 "",                 "Do not show statistics in realtime"],
             ["-C",  "--cache",                  "",                 "Cache each request response to temp file"],
             ["-ne", "--non-exist",              "",                 "Check, if non existing pages return status code 200."],
-            ["-vy", "-vuln-yes",                "",                 "Add provided VULN to JSON if source is found"],
-            ["-vn", "-vuln-no",                 "",                 "Add provided VULN to JSON if source is not found"],
+            ["-vy", "-vuln-yes",                "<vuln_code>",      "Add provided VULN to JSON if source is found"],
+            ["-vn", "-vuln-no",                 "<vuln_code>",      "Add provided VULN to JSON if source is not found"],
             ["-er", "--errors",                 "",                 "Show all errors"],
             ["-v",  "--version",                "",                 "Show script version"],
             ["-h",  "--help",                   "",                 "Show this help message"],
             ["-j",  "--json",                   "",                 "Output in JSON format"],
-            ["-arch",  "--archive",             "",                 "Passive scan via webarchive, accepts optional arguments: (noparams, checked)"],
+            ["-arch",  "--archive",             "",                 "Passive scan via webarchive, accepts optional arguments: (checked)"],
         ]},
     ]
 
@@ -126,6 +122,24 @@ def prepare_extensions(args: ArgumentOptions) -> list[str]:
     if exts == []:
         exts = [""]
     return exts
+
+def prepare_forbidden_paths(args: ArgumentOptions) -> list[str]:
+    """
+    Prepare the list of forbidden paths to test.
+
+    Args:
+        args (ArgumentOptions): Parsed and processed command-line arguments.
+
+    Returns:
+        list[str]: List of forbidden paths.
+    """
+    forbidden_paths = []
+    if args.forbidden_paths:
+        for path in args.forbidden_paths:
+            if path.startswith("http://") or path.startswith("https://"):
+                ptjsonlib.PtJsonLib().end_error("Provided path start with scheme.", args.json)
+            forbidden_paths.append(path if path.startswith("/") else "/" + path)
+    return forbidden_paths
 
 
 def expand_wordlist_patterns(wordlist_args: list[str], ptjsonlib: object, args: object) -> list[str]:
@@ -176,16 +190,17 @@ def get_star_position(url:str) -> tuple[int, str]:
         url = url.replace(url[position], "")
         return (position, url)
     else:
-        position = len(url) #url.rfind("/") + 1 # len(url)
+        position = len(url)
         return (position, url)
 
 
 def parse_args(scriptname: str) -> ArgumentOptions:
     SCRIPTNAME = scriptname
     parser = argparse.ArgumentParser(add_help=False, usage=f"{SCRIPTNAME} <options>")
-    exclusive = parser.add_mutually_exclusive_group()
-    exclusive.add_argument("-w",  "--wordlist", type=str, nargs="+")
-    exclusive.add_argument("-src", "--source", type=str, nargs="+")
+    parser.add_argument("-bf", "--bruteforce", action="store_true")
+    parser.add_argument("-w",  "--wordlist", type=str, nargs="+")
+    parser.add_argument("-src","--source", type=str, nargs="+", default=[])
+    parser.add_argument("-fp", "--forbidden-paths", type=str, nargs="+", default=[])
     parser.add_argument("-u",  "--url", type=str, required=False)
     parser.add_argument("-ch", "--charsets", type=str, nargs="+", default=[])
     parser.add_argument("-lm", "--length-min", type=int, default=1)
@@ -196,6 +211,7 @@ def parse_args(scriptname: str) -> ArgumentOptions:
     parser.add_argument("-b",  "--backups", action="store_true")
     parser.add_argument("-ba", "--backup-all", action="store_true")
     parser.add_argument("-e",  "--extensions", type=str, nargs="+", default=[])
+    parser.add_argument("-eo", "--extensions-output", type=str, nargs="+", default=[])
     parser.add_argument("-E",  "--extensions-file", type=str)
     parser.add_argument("-r",  "--recurse", action="store_true")
     parser.add_argument("-md", "--max-depth", type=int, default=20)
@@ -206,21 +222,21 @@ def parse_args(scriptname: str) -> ArgumentOptions:
     parser.add_argument("-ci", "--case-insensitive", action="store_true")
     parser.add_argument("-sy", "--string-in-response", type=str)
     parser.add_argument("-sn", "--string-not-in-response", type=str)
-    parser.add_argument("-scy", "--status-code-yes", type=int, nargs="+", default=[])
-    parser.add_argument("-scn", "--status-code-no", type=int, nargs="+", default=[400, 404, 407, 408, 410, 412, 415, 416, 418, 421, 423, 424, 425, 426, 427, 428, 429, 403])
+    parser.add_argument("-scy","--status-code-yes", type=int, nargs="+", default=[])
+    parser.add_argument("-scn","--status-code-no", type=int, nargs="+", default=[400, 404, 407, 408, 410, 412, 415, 416, 418, 421, 423, 424, 425, 426, 427, 428, 429])
     parser.add_argument("-m",  "--method", type=str.upper, default="HEAD", choices=["GET", "POST", "TRACE", "OPTIONS", "PUT", "DELETE", "HEAD", "DEBUG"])
     parser.add_argument("-se", "--scheme", type=str.lower, default="http", choices=["http", "https"])
     parser.add_argument("-d",  "--delay", type=int, default=0)
     parser.add_argument("-p",  "--proxy", type=str)
     parser.add_argument("-T",  "--timeout", type=int, default=10000)
     parser.add_argument("-cl", "--content-length", type=int, default=1000)
-    parser.add_argument("-wdc","--without_dns_cache", action="store_true")
     parser.add_argument("-H",  "--headers", type=ptmisclib.pairs, nargs="+")
-    parser.add_argument("-a", "--user-agent", type=str, default="Penterep Tools")
+    parser.add_argument("-a",  "--user-agent", type=str, default="Penterep Tools")
     parser.add_argument("-c",  "--cookie", type=str, default="")
     parser.add_argument("-rc", "--refuse-cookies", action="store_true")
     parser.add_argument("-nr", "--not-redirect", action="store_true", default=False)
-    parser.add_argument("-tg", "--target", type=str, default="")
+    parser.add_argument("-fd", "--foreign-domains", action="store_true", default=False)
+    parser.add_argument("-tg", "--target-server", type=str, default="")
     parser.add_argument("-t",  "--threads", type=int, default=20)
     parser.add_argument("-wd", "--without-domain", action="store_true")
     parser.add_argument("-wh", "--with-headers", action="store_true")
@@ -235,10 +251,10 @@ def parse_args(scriptname: str) -> ArgumentOptions:
     parser.add_argument("-C",  "--cache", action="store_true")
     parser.add_argument("-j",  "--json", action="store_true")
     parser.add_argument("-arch", "--archive",
-        nargs="*",
-        default=False,
-        choices=["noparams", "checked"],
-        type=lambda v: v.lower() if v.lower() in ["noparams", "checked"] else argparse.ArgumentTypeError(f"Invalid choice: {v}"),
+        nargs   = "*",
+        default = False,
+        choices = ["checked"],
+        type    = lambda v: v.lower() if v.lower() in ["checked"] else argparse.ArgumentTypeError(f"Invalid choice: {v}"),
     )
     parser.add_argument("-v",  "--version", action="version", version=f"{SCRIPTNAME} {__version__}")
 
@@ -261,9 +277,9 @@ def parse_args(scriptname: str) -> ArgumentOptions:
 
     # if source exists and url is not set
     if args.source and not args.url:
+        first = args.source[0]
         if not first.startswith(("http://", "https://")):
             ptjsonlib.PtJsonLib().end_error("Source is not a full URL. Add --url or make sure first source item is full URL.", args.json)
-        first = args.source[0]
         args.url = first
 
     # Merge wordlists into one
@@ -284,15 +300,18 @@ def parse_args(scriptname: str) -> ArgumentOptions:
     args.content_length: int        = args.content_length * 1000
     args.delay: int                 = args.delay / 1000
 
-    args.original_url: str         = args.url
-    args.url                       = ptnethelper.remove_slash_from_end_url(args.url) if not args.is_star else args.url
-    args.url                       = Url(args.url).add_missing_scheme(args.scheme)
-    args.target: str               = Url(args.target).add_missing_scheme(args.scheme)
-    args.position, args.url        = get_star_position(args.url)
-
-    _domain_with_protocol           = Url(args.url).get_domain_from_url(level=True, with_protocol=True)
-    #input(_domain_with_protocol)
-    args.is_star_in_domain          = True if args.is_star and args.position < len(_domain_with_protocol)+1 else False
+    url                             = Url(args.url) if args.url else None
+    target_server                   = Url(args.target_server) if args.target_server else None
+    args.url                        = ptnethelper.remove_slash_from_end_url(args.url) if not args.is_star else args.url
+    args.url                        = url.add_missing_scheme(args.scheme)
+    args.domain_with_scheme: str    = url.get_domain_from_url(level=True, with_protocol=True)
+    args.domain: str                = url.get_domain_from_url(level=True, with_protocol=False)
+    args.path: str                  = url.get_path_from_url(with_l_slash=True, without_r_slash=True)
+    args.target_server: str         = target_server.add_missing_scheme(args.scheme) if target_server else None
+    args.position, args.url         = get_star_position(args.url)
+    args.port: int                  = url.get_port_from_url()
+    args.is_star_in_domain: bool    = True if args.is_star and args.position < len(args.domain_with_scheme)+1 else False
+    args.not_redirect: bool         = True if args.target_server else args.not_redirect
 
     args.proxies: dict              = {"http": args.proxy, "https": args.proxy}
     args.headers: dict              = ptnethelper.get_request_headers(args)
@@ -303,6 +322,7 @@ def parse_args(scriptname: str) -> ArgumentOptions:
     args.threads: int               = args.threads if not args.delay  else 1
     args.method: str                = args.method if not (args.string_in_response or args.string_not_in_response or args.parse or args.save) else "GET"
     args.extensions                 = prepare_extensions(args)
+    args.forbidden_paths            = prepare_forbidden_paths(args)
 
     check_args_combinations(args)
 
@@ -332,14 +352,25 @@ def check_args_combinations(args) -> None:
             ptjsonlib_.end_error("Cannot use tree output with '*' character in domain", args.json)
         if args.without_domain:
             ptjsonlib_.end_error("Cannot use output without domain with '*' character in domain", args.json)
+        if args.method not in ["GET", "HEAD"]:
+            ptjsonlib_.end_error("Cannot use method other than GET with '*' character in domain", args.json)
+        if args.method == "HEAD":
+            args.method = "GET"
 
     if args.backup_all and (args.parse_only or args.wordlist):
         ptjsonlib_.end_error("Cannot use -ba/--backup-all with -Po/--parse-only or -w/--wordlist options", args.json)
 
-    if args.parse_only and args.wordlist:
-        ptjsonlib.end_error("Cannot use -Po/--parse-only with -w/--wordlist option", args.json)
+    if args.parse_only and (args.wordlist or args.source):
+        ptjsonlib_.end_error("Cannot use -Po/--parse-only with -w/--wordlist option or -src/--source option", args.json)
 
-            #ptprinthelper.ptprint(" ", None)
+    if args.status_code_yes and args.status_code_no:
+            ptjsonlib_.end_error(f"Cannot specify both --status-code-yes and --status-code-no", args.json)
+
+    if args.bruteforce and (args.wordlist or args.backup_all or args.parse_only or args.archive or args.source):
+        ptjsonlib_.end_error("Cannot use -bf/--bruteforce with -w, -ba, -Po, -arch and -src options", args.json)
+
+    if args.target_server:
+        args.not_redirect = True
 
     #if args.wordlist and (args.backup_all or args.parse_only):
     #        ptjsonlib_.end_error("Cannot use wordlist with parameters --parse-only and --backup-only", args.json)
