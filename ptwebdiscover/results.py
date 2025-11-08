@@ -8,7 +8,7 @@ from ptdataclasses.findingdetail import FindingDetail
 from io import TextIOWrapper
 
 
-def output_result(args, findings: list[str], findings_details: list[FindingDetail], technologies: list[str]) -> None:
+def output_result(args, findings: list[str], findings_details: list[FindingDetail] = [], technologies: list[str] = []) -> None:
     """
     Output the scan results in either tree or list format.
     Result is always printed to console in human-readable format. When JSON output is selected, this function is not called.

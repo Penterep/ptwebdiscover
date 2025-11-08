@@ -345,12 +345,13 @@ class Scanner:
         status_code = self.get_status_for_non_existing_resource(url)
         if status_code == 200:
             self.parent.ptjsonlib.add_vulnerability("PTV-WEB-INJECT-REFLEXURL")
-            self.parent.ptjsonlib.end_ok("Server returned SC 200 for not-existing resources", self.parent.args.json, bullet_type="VULN")
+            self.parent.ptjsonlib.end_ok("Server returned status code 200 for not-existing resources", self.parent.args.json, bullet_type="VULN")
         else:
             self.parent.ptjsonlib.end_ok(f"Server returned status code {status_code} for non existing resource", self.parent.args.json, bullet_type="OK")
 
 
     def get_status_for_non_existing_resource(self, url: str) -> int:
+        url = url + "/" if not url.endswith("/") else url
         url = url + "this-resource-does-not-exist"
         response = self.send_request(url)
         return response.status_code
@@ -378,3 +379,43 @@ class Scanner:
         else:
             ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"Returned status code {response.status_code}. Site redirected to {target_location}. Check target in -u option.\n", "ERROR", self.args.json), end="\n", clear_to_eol=True)
         return (self.target.url, self.args.position)
+
+    def check_extensions_whitelisting(self) -> None:
+        """
+        Check if the server is whitelisting certain file extensions.
+
+        This method tests a set of common backup and configuration file extensions
+        to determine if the server allows access to them, indicating potential
+        security misconfigurations.
+        """
+        test_directory = self.parent.counters.get_actual_directory()
+        test_schema_path = self.parent.target.domain_with_scheme + test_directory
+        test_url_file = test_schema_path + "/nonexistfile"
+        non_exist_status_code = self.get_status_for_non_existing_resource(test_url_file + ".jpg")
+        ptprinthelper.ptprint("Checking for extensions whitelisting", "TITLE", condition=not self.parent.args.json, colortext=True)
+        
+        for extension in self.parent.args.extensions_whitelist:
+            if not extension.startswith("."):
+                extension = ".jpg" + extension
+            self.check_extension_whitelisteing(test_url_file + extension, extension, non_exist_status_code)
+
+        self.check_dotfile_whitelisteing(test_schema_path, non_exist_status_code)
+
+
+    def check_extension_whitelisteing(self, url: str, extension: str = None, non_exist_status_code: int = 404) -> None:
+        response = self.send_request(url)
+        if response.status_code != non_exist_status_code:
+            ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"Extension {extension:<5} returned status code {response.status_code}", "OK", self.parent.args.json), end="\n", clear_to_eol=True)
+            #self.parent.ptjsonlib.add_vulnerability(f"PTV-WEB-EXT-WHITELIST-{extension.upper().replace('.', '')}")
+        else:
+            ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"Extension {extension:<5} returned the same status code ({response.status_code}) as the non-existing resource", "ERROR", self.parent.args.json), end="\n", clear_to_eol=True)
+
+
+    def check_dotfile_whitelisteing(self, test_schema_path: str, non_exist_status_code: int = 404) -> None:
+        url = test_schema_path + "/.dot"
+        response = self.send_request(url)
+        if response.status_code != non_exist_status_code:
+            ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"Filename started with '.' returned status code {response.status_code}", "OK", self.parent.args.json), end="\n", clear_to_eol=True)
+            #self.parent.ptjsonlib.add_vulnerability(f"PTV-WEB-EXT-WHITELIST-{extension.upper().replace('.', '')}")
+        else:
+            ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"Filename started with '.' returned the same status code ({response.status_code}) as the non-existing resource", "ERROR", self.parent.args.json), end="\n", clear_to_eol=True)

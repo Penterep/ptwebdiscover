@@ -50,6 +50,7 @@ def get_help():
             ["-ci", "--case-insensitive",       "",                 "Case insensitive items from wordlist"],
             ["-e",  "--extensions",             "<extensions>",     "Add extensions behind a tested string (\"\" for empty extension)"],
             ["-E",  "--extension-file",         "<filename>",       "Add extensions from default or specified file behind a tested string."],
+            ["-ew",  "--extensions-whitelist",  "<extensions>",     "Check for extensions whitelisting on the server (default are common backup and config extensions)"],
             ["-eo",  "--extensions-output",     "<extensions>",     "Include only sources with specified extensions in output"],            
             ["-r",  "--recurse",                "",                 "Recursive browsing of found directories"],
             ["-md", "--max_depth",              "<integer>",        "Maximum depth during recursive browsing (default: 20)"],
@@ -213,6 +214,7 @@ def parse_args(scriptname: str) -> ArgumentOptions:
     parser.add_argument("-e",  "--extensions", type=str, nargs="+", default=[])
     parser.add_argument("-eo", "--extensions-output", type=str, nargs="+", default=[])
     parser.add_argument("-E",  "--extensions-file", type=str)
+    parser.add_argument("-ew", "--extensions-whitelist", type=str, nargs="*")
     parser.add_argument("-r",  "--recurse", action="store_true")
     parser.add_argument("-md", "--max-depth", type=int, default=20)
     parser.add_argument("-P",  "--parse", action="store_true")
@@ -274,6 +276,9 @@ def parse_args(scriptname: str) -> ArgumentOptions:
 
     if args.archive == []:
         args.archive = True
+
+    if args.extensions_whitelist == []:
+        args.extensions_whitelist = [".bak", ".old", ".zip", ".tar", ".gz", ".rar", ".7z", ".swp", ".log", ".tmp", ".cnf", ".conf", ".ini", ".sql", ".inc", "_", "~"]
 
     # if source exists and url is not set
     if args.source and not args.url:
@@ -368,6 +373,9 @@ def check_args_combinations(args) -> None:
 
     if args.bruteforce and (args.wordlist or args.backup_all or args.parse_only or args.archive or args.source):
         ptjsonlib_.end_error("Cannot use -bf/--bruteforce with -w, -ba, -Po, -arch and -src options", args.json)
+
+    if args.extensions_whitelist and (args.bruteforce or args.backup_all or args.parse_only or args.wordlist or args.archive):
+        ptjsonlib_.end_error("Cannot use -ew/--extensions-whitelist with -bf, -ba, -Po or -w options", args.json)
 
     if args.target_server:
         args.not_redirect = True

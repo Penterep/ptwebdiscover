@@ -65,6 +65,7 @@ class PtWebDiscover():
                 results.print_results(self)
                 results.print_finish_message(self)
                 return
+            results.output_result(self.args, url_list)
             ptprinthelper.ptprint(f"Webarchive URLs: {len(payloads)}\n", "INFO", condition=not self.args.json, clear_to_eol=True)
 
         payloads, keyspace = helpers.prepare_payloads(self, payloads)
@@ -76,6 +77,11 @@ class PtWebDiscover():
 
         if self.args.non_exist:
             self.scanner.test_status_for_non_existing_resource(self.target.url)
+            # Exit after testing non-existing resource
+            return
+
+        if self.args.extensions_whitelist:
+            self.scanner.check_extensions_whitelisting()
             # Exit after testing non-existing resource
             return
 
