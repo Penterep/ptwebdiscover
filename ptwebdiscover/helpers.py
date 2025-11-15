@@ -268,6 +268,13 @@ def get_all_urls_from_response(response: requests.Response) -> list[str]:
         re.MULTILINE
     )
 
+    # Regex pattern to find URLs with escaped slashes (from JSON responses)
+    # Matches URLs like http:\/\/domain.com\/path\/
+    json_url_pattern = re.compile(
+        r'https?:\\?/\\?/[^\s"\'<>]+',
+        re.IGNORECASE
+    )
+
     tags_with_href_or_src = [
         # href
         "a", "link", "area", "base",
@@ -287,6 +294,13 @@ def get_all_urls_from_response(response: requests.Response) -> list[str]:
 
     urls_from_robots_txt = robots_pattern.findall(response.text)
     urls.extend(urls_from_robots_txt)
+
+    # Extract URLs with escaped slashes from JSON responses
+    json_urls = json_url_pattern.findall(response.text)
+    for json_url in json_urls:
+        # Unescape the slashes
+        clean_url = json_url.replace(r'\/', '/')
+        urls.append(clean_url)
 
     for tag in soup.find_all(tags_with_href_or_src):
         for attr in ["href", "src"]:
