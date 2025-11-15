@@ -135,9 +135,9 @@ def prepare_wordlist(self) -> tuple[int, list[str]]:
         return wordlist_complete
 
     except FileNotFoundError as e:
-        self.ptjsonlib.end_error(f"Wordlist {e.filename} not found", args.json)
+        self.ptjsonlib.end_error(f"Wordlist {e.filename} not found", self.args.json)
     except PermissionError as e:
-        self.ptjsonlib.end_error(f"Do not have permissions to open {e.filename}", args.json)
+        self.ptjsonlib.end_error(f"Do not have permissions to open {e.filename}", self.args.json)
 
 def get_unique_list(items: list) -> list:
     seen = set()

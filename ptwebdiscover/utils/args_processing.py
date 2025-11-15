@@ -278,7 +278,7 @@ def parse_args(scriptname: str) -> ArgumentOptions:
         args.archive = True
 
     if args.extensions_whitelist == []:
-        args.extensions_whitelist = [".bak", ".old", ".zip", ".tar", ".gz", ".rar", ".7z", ".swp", ".log", ".tmp", ".cnf", ".conf", ".ini", ".sql", ".inc", "_", "~"]
+        args.extensions_whitelist = [".bak", ".old", ".zip", ".tar", ".gz", ".rar", ".7z", ".swp", ".log", ".tmp", ".cnf", ".conf", ".ini", ".sql", ".inc", ".jpg_", ".jpg~"]
 
     # if source exists and url is not set
     if args.source and not args.url:

@@ -395,8 +395,6 @@ class Scanner:
         ptprinthelper.ptprint("Checking for extensions whitelisting", "TITLE", condition=not self.parent.args.json, colortext=True)
         
         for extension in self.parent.args.extensions_whitelist:
-            if not extension.startswith("."):
-                extension = ".jpg" + extension
             self.check_extension_whitelisteing(test_url_file + extension, extension, non_exist_status_code)
 
         self.check_dotfile_whitelisteing(test_schema_path, non_exist_status_code)

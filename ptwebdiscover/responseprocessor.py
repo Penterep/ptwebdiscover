@@ -158,6 +158,7 @@ class ResponseProcessor:
 
 
     def parse_html_find_and_add_urls(self, response: requests.Response) -> str:
+        input("FFFFFFFFF"+response.text)
         output = "\n"
         urls = self.find_urls_in_html(response, self.parent.target.scheme)
         for url in urls:
@@ -207,4 +208,4 @@ class ResponseProcessor:
             return False
 
         content_length = int(c_l)
-        return content_length < self.args.content_length
+        return content_length < self.parent.args.content_length
