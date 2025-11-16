@@ -93,6 +93,7 @@ def get_help():
             ["-v",  "--version",                "",                 "Show script version"],
             ["-h",  "--help",                   "",                 "Show this help message"],
             ["-j",  "--json",                   "",                 "Output in JSON format"],
+            ["-sm", "--sitemap",                "",                 "Parse sitemap.xml for URL discovery"],
             ["-arch",  "--archive",             "",                 "Passive scan via webarchive, accepts optional arguments: (checked)"],
         ]},
     ]
@@ -252,6 +253,7 @@ def parse_args(scriptname: str) -> ArgumentOptions:
     parser.add_argument("-s",  "--silent", action="store_true")
     parser.add_argument("-C",  "--cache", action="store_true")
     parser.add_argument("-j",  "--json", action="store_true")
+    parser.add_argument("-sm", "--sitemap", action="store_true", default=False)
     parser.add_argument("-arch", "--archive",
         nargs   = "*",
         default = False,

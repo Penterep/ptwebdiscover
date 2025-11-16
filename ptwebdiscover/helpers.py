@@ -443,6 +443,18 @@ def normalize_url(url: str) -> str:
 
     return normalized_url
 
+def filter_urls_by_domain(urls, domain):
+    filtered = []
+    for url in urls:
+        try:
+            parsed = urllib.parse.urlparse(url)
+            netloc = parsed.netloc.lower()
+            if netloc == domain.lower() or netloc.endswith('.' + domain.lower()):
+                filtered.append(url)
+        except Exception:
+            continue  # ignore invalid URL
+    return filtered
+
 def print_progress_line(self, url: str = None) -> None:
     dirs_todo = len(self.findings.get_notvisited_directories())
     dir_no = "(D:" + str(dirs_todo) + " / " + str(self.counters.get_progress_percentage()) + "%) " if dirs_todo else ""

@@ -22,6 +22,7 @@ import sys; sys.path.append(__file__.rsplit("/", 1)[0])
 import requests
 import scanner
 import helpers
+import sitemap
 import results
 import webarchive
 
@@ -67,6 +68,15 @@ class PtWebDiscover():
                 return
             results.output_result(self.args, url_list)
             ptprinthelper.ptprint(f"Webarchive URLs: {len(payloads)}\n", "INFO", condition=not self.args.json, clear_to_eol=True)
+ 
+        if self.args.sitemap:
+            sitemap_urls = sitemap.parse_sitemap(self, self.target.url)
+            if sitemap_urls:
+                self.findings.findings.extend(sitemap_urls)
+                results.output_result(self.args, sitemap_urls)
+                ptprinthelper.ptprint(f"Sitemap URLs: {len(sitemap_urls)}\n", "INFO", condition=not self.args.json, clear_to_eol=True)
+            else:
+                ptprinthelper.ptprint("No sitemap URLs found", "INFO", condition=not self.args.json, clear_to_eol=True, end="\n\n")
 
         payloads, keyspace = helpers.prepare_payloads(self, payloads)
         self.counters.set_keyspace(keyspace)
