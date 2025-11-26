@@ -201,8 +201,6 @@ def prepare_payloads(self, payloads: list = []) -> tuple[list[str], int]:
             self.target.url = self.target.domain_with_scheme
             keyspace = 0
         else:                     # when only -src is provided
-            parsed = urllib.parse.urlparse(self.args.source[0])
-            self.target.url = f"{parsed.scheme}://{parsed.netloc}"
             keyspace = 0
         self.target.path=""
         
@@ -474,6 +472,7 @@ def print_configuration(self) -> None:
     ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"URL................: {self.args.url}", "INFO", self.args.json))
     ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"Discovery-type.....: Brute force", "INFO", self.args.json or not self.args.bruteforce))
     ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"Discovery-type.....: Webarchive", "INFO", self.args.json or not self.args.archive))
+    ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"Discovery-type.....: Sitemap parsing", "INFO", self.args.json or not self.args.sitemap))
     ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"Discovery-type.....: Complete backups only", "INFO", self.args.json or not self.args.backup_all))
     ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"Discovery-type.....: Dictionary", "INFO", self.args.json or not self.args.wordlist))
     ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"Discovery-type.....: Crawling", "INFO", self.args.json or not self.args.parse_only))

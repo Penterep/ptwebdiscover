@@ -228,7 +228,7 @@ def parse_args(scriptname: str) -> ArgumentOptions:
     parser.add_argument("-scy","--status-code-yes", type=int, nargs="+", default=[])
     parser.add_argument("-scn","--status-code-no", type=int, nargs="+", default=[400, 404, 407, 408, 410, 412, 415, 416, 418, 421, 423, 424, 425, 426, 427, 428, 429])
     parser.add_argument("-m",  "--method", type=str.upper, default="HEAD", choices=["GET", "POST", "TRACE", "OPTIONS", "PUT", "DELETE", "HEAD", "DEBUG"])
-    parser.add_argument("-se", "--scheme", type=str.lower, default="http", choices=["http", "https"])
+    parser.add_argument("-se", "--scheme", type=str.lower, choices=["http", "https"])
     parser.add_argument("-d",  "--delay", type=int, default=0)
     parser.add_argument("-p",  "--proxy", type=str)
     parser.add_argument("-T",  "--timeout", type=int, default=10000)
@@ -300,7 +300,12 @@ def parse_args(scriptname: str) -> ArgumentOptions:
     if not re.match(r"^https?://", args.url):
         ptjsonlib.PtJsonLib().end_error("Provided URL does not start with valid scheme.", args.json)
 
-    # from init
+    if not args.scheme:
+        if args.url.startswith("https://"):
+            args.scheme = "https"
+        else:
+            args.scheme = "http"
+
     args.is_star: bool              = True if "*" in args.url else False
     args.auth: tuple                = tuple(args.auth.split(":")) if args.auth else None
     args.timeout: int               = args.timeout / 1000

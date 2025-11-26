@@ -9,7 +9,6 @@ def parse_sitemap(self, url=None) -> list:
         xml_text = r.content.decode('utf-8-sig')
         root = ET.fromstring(xml_text)
     except Exception as e:
-        input(f"Error parsing sitemap {url}: {e}")
         return []
 
     # namespace
@@ -24,7 +23,6 @@ def parse_sitemap(self, url=None) -> list:
         for url_elem in root.findall('s:url', ns):
             loc = url_elem.find('s:loc', ns).text
             urls.append(loc)
-    print(f"Found {len(urls)} URLs in sitemap: {url}\n")
     urls = helpers.get_unique_list(urls)
     urls = helpers.filter_urls_by_extension(urls, self.args.extensions)
     urls = helpers.filter_urls_by_domain(urls, self.target.domain)

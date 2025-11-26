@@ -68,7 +68,7 @@ class PtWebDiscover():
                 return
             results.output_result(self.args, url_list)
             ptprinthelper.ptprint(f"Webarchive URLs: {len(payloads)}\n", "INFO", condition=not self.args.json, clear_to_eol=True)
- 
+        
         if self.args.sitemap:
             sitemap_urls = sitemap.parse_sitemap(self, self.target.url)
             if sitemap_urls:
@@ -81,7 +81,7 @@ class PtWebDiscover():
         payloads, keyspace = helpers.prepare_payloads(self, payloads)
         self.counters.set_keyspace(keyspace)
         self.counters.set_keyspace_complete(self.counters.get_keyspace())
-
+        
         helpers.print_configuration(self)
         helpers.check_website_and_method_availability(self)
 

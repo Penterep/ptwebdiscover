@@ -74,13 +74,13 @@ class Scanner:
                 technology = None
 
             if self.parent.args.is_star:
-                request_url = self.parent.target.url[:self.parent.args.position] + self.parent.counters.get_actual_directory() + source + extension + self.parent.target.url[self.parent.args.position:]
+                request_url = self.parent.target.url[:self.parent.args.position] + source + self.parent.target.url[self.parent.args.position:]
             else:
                 request_url = self.parent.target.domain_with_scheme + self.parent.counters.get_actual_directory() + source + extension
 
             if not (extension != "" and (source == "" or source.endswith("/"))):
                 response = self.prepare_and_send_request(request_url)
-            
+
             if response.status_code:
                 self.process_response(request_url, response, source, technology)
 
@@ -173,8 +173,9 @@ class Scanner:
         Returns:
             bool: True if the response status code is 200, False otherwise.
         """
+        max_retries = 0 if self.parent.args.is_star_in_domain else 2
         try:
-            response = self.send_request(url)
+            response = self.send_request(url, max_retries=max_retries)
             self.add_all_urls_from_request_history_to_visited(response)
         except Exception as e:
             if not self.parent.args.is_star_in_domain:
@@ -256,7 +257,7 @@ class Scanner:
         else:
             response_domain = Url(response.url).get_domain_from_url(level=True, with_protocol=False)
 
-        return (
+        is_compliant = (
             (
                 # domain must match
                 response_domain == Url(request_url).get_domain_from_url(level=True, with_protocol=False) 
@@ -273,6 +274,7 @@ class Scanner:
             # string must not exist
             and (not self.parent.args.string_not_in_response or self.parent.args.string_not_in_response not in response.text)
         )
+        return is_compliant
 
     def process_response(self, request_url: str, response: requests.Response, source: str=None, technology:str = None) -> None:
         """
@@ -290,7 +292,7 @@ class Scanner:
             if self.parent.args.save and response_processor.content_shorter_than_maximum(response):
                 path = Url(request_url).get_path_from_url(with_l_slash=False)
                 response_processor.save_content(response.content, path, self.parent.args.save)
-
+            
             content_type, ct_bullet = response_processor.get_text_directory_or_file(response, request_url)
             history = response_processor.get_response_history(response.history)
             content_location = response_processor.get_content_location(response)
@@ -324,8 +326,9 @@ class Scanner:
                 response_processor.add_unique_technology_to_technologies(technology)
 
         # Remove URL found in html but not compliant
-        elif response.url in self.parent.findings:
-            self.parent.findings.remove(response.url)
+        elif response.url in self.parent.findings.findings:
+            self.parent.findings.findings.remove(response.url)
+
 
     def add_all_urls_from_request_history_to_visited(self, response: requests.Response) -> None:
         """
