@@ -523,6 +523,7 @@ def print_configuration(self) -> None:
     ptprinthelper.ptprint( ptprinthelper.out_title_ifnot("Settings overview", self.args.json))
     ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"URL................: {self.args.url}", "INFO", self.args.json))
     ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"Discovery-type.....: Brute force", "INFO", self.args.json or not self.args.bruteforce))
+    ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"Discovery-type.....: Google Custom Search", "INFO", self.args.json or not self.args.google))
     ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"Discovery-type.....: Webarchive", "INFO", self.args.json or not self.args.archive))
     ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"Discovery-type.....: Sitemap parsing", "INFO", self.args.json or not self.args.sitemap))
     ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"Discovery-type.....: Complete backups only", "INFO", self.args.json or not self.args.backup_all))

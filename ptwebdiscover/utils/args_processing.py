@@ -93,6 +93,9 @@ def get_help():
             ["-v",  "--version",                "",                 "Show script version"],
             ["-h",  "--help",                   "",                 "Show this help message"],
             ["-j",  "--json",                   "",                 "Output in JSON format"],
+            ["-gl", "--google",                 "",                 "Use Google Custom Search API for URL discovery"],
+            ["-gak","--google-api",              "<api_key>",       "Google Custom Search API key"],
+            ["-gcx","--google-cx",               "<cx_key>",        "Google Custom Search CX key"],
             ["-sm", "--sitemap",                "",                 "Parse sitemap.xml for URL discovery"],
             ["-arch",  "--archive",             "",                 "Passive scan via webarchive, accepts optional arguments: (checked)"],
         ]},
@@ -253,6 +256,9 @@ def parse_args(scriptname: str) -> ArgumentOptions:
     parser.add_argument("-s",  "--silent", action="store_true")
     parser.add_argument("-C",  "--cache", action="store_true")
     parser.add_argument("-j",  "--json", action="store_true")
+    parser.add_argument("-gl", "--google", action="store_true")
+    parser.add_argument("-gak","--google-api", type=str, default="")
+    parser.add_argument("-gcx","--google-cx", type=str, default="")
     parser.add_argument("-sm", "--sitemap", action="store_true", default=False)
     parser.add_argument("-arch", "--archive",
         nargs   = "*",
@@ -386,6 +392,9 @@ def check_args_combinations(args) -> None:
 
     if args.target_server:
         args.not_redirect = True
+
+    if args.google and (not args.google_api or not args.google_cx):
+        ptjsonlib_.end_error("Google API key and CX key must be provided when using --google option", args.json)
 
     #if args.wordlist and (args.backup_all or args.parse_only):
     #        ptjsonlib_.end_error("Cannot use wordlist with parameters --parse-only and --backup-only", args.json)

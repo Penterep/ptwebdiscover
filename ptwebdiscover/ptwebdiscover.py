@@ -25,6 +25,7 @@ import helpers
 import sitemap
 import results
 import webarchive
+import google
 
 from ptlibs import ptjsonlib, ptprinthelper
 from ptlibs.threads import ptthreads, printlock, arraylock
@@ -80,6 +81,15 @@ class PtWebDiscover():
                 ptprinthelper.ptprint(f"Sitemap URLs: {len(sitemap_urls)}\n", "INFO", condition=not self.args.json, clear_to_eol=True)
             else:
                 ptprinthelper.ptprint("No sitemap URLs found", "INFO", condition=not self.args.json, clear_to_eol=True, end="\n\n")
+
+        if self.args.google:
+            google_urls = google.get_all_urls(self)
+            if google_urls:
+                self.findings.findings.extend(google_urls)
+                #results.output_result(self.args, google_urls)
+                ptprinthelper.ptprint(f"Google URLs: {len(google_urls)}\n", "INFO", condition=not self.args.json, clear_to_eol=True)
+            else:
+                ptprinthelper.ptprint("No URLs found on Google", "INFO", condition=not self.args.json, clear_to_eol=True, end="\n\n")
 
         payloads, keyspace = helpers.prepare_payloads(self, payloads)
         self.counters.set_keyspace(keyspace)
