@@ -1,8 +1,6 @@
 import os
-
-from ptlibs import tldparser
 import urllib.parse
-
+from ptlibs import tldparser
 
 class Url:
     """
@@ -100,30 +98,33 @@ class Url:
             path = "/"
         abs = os.path.abspath(path)+"/" if path.endswith("/") and path !="/" else os.path.abspath(path)
         return domain_with_scheme + abs
+    
 
-    def get_domain_from_url(self, level=True, with_protocol=True) -> str:
+    def get_domain_from_url(self, level: bool = True, with_protocol: bool = True, with_port: bool = True) -> str:
         """
-        Extract the domain from the URL.
-
-        Args:
-            level (bool): If True, return the full subdomain and domain.
-                If False, return only the base domain.
-            with_protocol (bool): If True, include the scheme (http/https).
-
-        Returns:
-            str: The extracted domain, optionally including subdomains and scheme.
+        Extract domain from URL, optionally including subdomains, scheme and port.
         """
+        parsed = urllib.parse.urlparse(self.url)
+
+        # tldextract pracuje pouze s hostname
         extract = tldparser.parse(self.url)
-        if extract.subdomain:
-            extract.subdomain += "."
-        if with_protocol:
-            protocol = extract.scheme + "://" if extract.scheme else "http://"
+
+        # složení hostname části
+        if level and extract.subdomain:
+            host = f"{extract.subdomain}.{extract.domain}"
         else:
-            protocol = ""
-        if level:
-            return protocol + extract.subdomain + extract.domain + ("." if extract.suffix else "") + extract.suffix
-        else:
-            return protocol + extract.domain + ("." if extract.suffix else "") + extract.suffix
+            host = extract.domain
+
+        if extract.suffix:
+            host = f"{host}.{extract.suffix}"
+
+        # protokol
+        protocol = f"{parsed.scheme}://" if with_protocol and parsed.scheme else ""
+
+        # port
+        port = f":{parsed.port}" if with_port and parsed.port else ""
+
+        return f"{protocol}{host}{port}"
 
     def add_missing_scheme(self, scheme: str) -> str:
         """
