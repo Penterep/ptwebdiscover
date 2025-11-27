@@ -59,6 +59,9 @@ class PtWebDiscover():
 
     def run(self) -> None:
         payloads = [""]
+
+        helpers.check_website_and_method_availability(self)
+
         if self.args.archive:
             url_list, payloads = webarchive.get_urls_from_webarchive(self) # returns url_list (full URLs), payloads (only paths)
             if not "checked" in str(self.args.archive):
@@ -66,14 +69,14 @@ class PtWebDiscover():
                 results.print_results(self)
                 results.print_finish_message(self)
                 return
-            results.output_result(self.args, url_list)
+            #results.output_result(self.args, url_list)
             ptprinthelper.ptprint(f"Webarchive URLs: {len(payloads)}\n", "INFO", condition=not self.args.json, clear_to_eol=True)
         
         if self.args.sitemap:
             sitemap_urls = sitemap.parse_sitemap(self, self.target.url)
             if sitemap_urls:
                 self.findings.findings.extend(sitemap_urls)
-                results.output_result(self.args, sitemap_urls)
+                #results.output_result(self.args, sitemap_urls)
                 ptprinthelper.ptprint(f"Sitemap URLs: {len(sitemap_urls)}\n", "INFO", condition=not self.args.json, clear_to_eol=True)
             else:
                 ptprinthelper.ptprint("No sitemap URLs found", "INFO", condition=not self.args.json, clear_to_eol=True, end="\n\n")
@@ -83,7 +86,6 @@ class PtWebDiscover():
         self.counters.set_keyspace_complete(self.counters.get_keyspace())
         
         helpers.print_configuration(self)
-        helpers.check_website_and_method_availability(self)
 
         if self.args.non_exist:
             self.scanner.test_status_for_non_existing_resource(self.target.url)

@@ -1,7 +1,14 @@
 import helpers
+from ptlibs import ptprinthelper
 import xml.etree.ElementTree as ET
 
 def parse_sitemap(self, url=None) -> list:
+    
+    ptprinthelper.ptprint("Sitemap crawling:", "TITLE", condition=not self.args.json, clear_to_eol=True)
+
+    if helpers.is_url_domain_only(url):
+        url= helpers.get_sitemap_url_from_robots_txt(self, url)
+
     urls = []
     try:
         r = self.scanner.send_request(url, method="GET")

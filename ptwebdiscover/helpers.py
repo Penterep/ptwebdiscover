@@ -453,6 +453,44 @@ def filter_urls_by_domain(urls, domain):
             continue  # ignore invalid URL
     return filtered
 
+def is_url_domain_only(url: str) -> bool:
+    """
+    Check if the URL contains only the domain without any path, query, or fragment.
+    Returns True for https://www.example.com and https://www.example.com/, False otherwise.
+    """
+    parsed = urllib.parse.urlparse(url)
+
+    if not parsed.scheme or not parsed.netloc:
+        return False
+
+    return (
+        parsed.path in ("", "/")
+        and not parsed.params
+        and not parsed.query
+        and not parsed.fragment
+    )
+
+def get_sitemap_url_from_robots_txt(self, url: str) -> str:
+    """
+    Get sitemap URL from robots.txt file.
+
+    Args:
+        url (str): The base URL of the website.
+    """
+    robots_txt_url = urllib.parse.urljoin(url, "/robots.txt")
+    try:
+        response = self.scanner.send_request(url=robots_txt_url, method="GET", headers=self.args.headers, proxies=self.args.proxies, verify=False, redirects=False, auth=self.args.auth, cache=self.args.cache)
+        if response.status_code == 200:
+            sitemap_pattern = re.compile(r'(?i)^sitemap:\s*(\S+)', re.MULTILINE)
+            match = sitemap_pattern.search(response.text)
+            if match:
+                sitemap_url = match.group(1)
+                ptprinthelper.ptprint(f"Found sitemap URL in robots.txt: {sitemap_url}", "INFO", condition=self.args.json)
+                return sitemap_url
+    except Exception as e:
+        ptprinthelper.ptprint(f"Could not retrieve robots.txt from {robots_txt_url}: {str(e)}", "WARNING", condition=self.args.json)
+    return None
+
 def print_progress_line(self, url: str = None) -> None:
     dirs_todo = len(self.findings.get_notvisited_directories())
     dir_no = "(D:" + str(dirs_todo) + " / " + str(self.counters.get_progress_percentage()) + "%) " if dirs_todo else ""
