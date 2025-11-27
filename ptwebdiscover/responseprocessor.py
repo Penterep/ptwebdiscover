@@ -1,9 +1,10 @@
 import os
-import re
+from bs4 import BeautifulSoup
 import requests
 from ptlibs import ptprinthelper
 from ptwebdiscover import helpers
 from utils.url import Url
+from urllib.parse import urlparse
 from ptdataclasses.findingdetail import FindingDetail
 
 
@@ -62,7 +63,29 @@ class ResponseProcessor:
             output += self.get_content_location(response)
 
         return output
+    
 
+    def http_resources_in_https_page(self, html: str) -> list[str]:
+        TAGS_ATTRS = {
+            "script": "src",
+            "img": "src",
+            "iframe": "src",
+            "link": "href",
+            "audio": "src",
+            "video": "src",
+            "source": "src"
+        }
+        soup = BeautifulSoup(html, "html.parser")
+        insecure_resources = []
+
+        for tag, attr in TAGS_ATTRS.items():
+            for element in soup.find_all(tag):
+                url = element.get(attr)
+                if url and url.startswith("http://"):
+                    insecure_resources.append(url)
+
+        return insecure_resources
+    
 
     def parse_url_and_add_unique_url_and_directories(self, url: str, response: requests.Response = None) -> None:
         url_with_params = url
@@ -158,6 +181,7 @@ class ResponseProcessor:
 
 
     def parse_html_find_and_add_urls(self, response: requests.Response) -> str:
+        response.encoding = response.apparent_encoding
         output = "\n"
         urls = self.find_urls_in_html(response, self.parent.target.scheme)
         for url in urls:

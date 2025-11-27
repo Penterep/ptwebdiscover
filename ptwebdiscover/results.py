@@ -156,8 +156,22 @@ def print_results(self):
                 ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"{url}", "", self.args.json))
 
 def print_warnings(self) -> None:
-    if self.findings.directory_listing_urls or self.findings.long_content_in_redirect_urls or self.findings.backups_urls:
+    if self.findings.directory_listing_urls or self.findings.long_content_in_redirect_urls or self.findings.backups_urls or self.findings.insecure_resources:
         ptprinthelper.ptprint( ptprinthelper.out_ifnot("Warning: Next potential problems found:", "WARNING", condition=self.args.json, colortext=True))
+        if self.findings.insecure_resources:
+            ptprinthelper.ptprint( ptprinthelper.out_ifnot("Insecure resources found at:", "WARNING", self.args.json), newline_above=True)
+            total_urls = len(self.findings.insecure_resources)
+            for i, entry in enumerate(self.findings.insecure_resources):
+                if i >= 20:
+                    break
+                for url, resources in entry.items():
+                    ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"    {url}", "", self.args.json), end="     ")
+                    for r in resources:
+                        ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"{r} ", "ADDITIONS", colortext=True, condition=self.args.json), end="")
+                    ptprinthelper.ptprint(ptprinthelper.out_ifnot(" ", "", self.args.json))
+            remaining = total_urls - 20
+            if remaining > 0:
+                ptprinthelper.ptprint(ptprinthelper.out_ifnot("... and next {remaining} urls", "", self.args.json))
         if self.findings.directory_listing_urls:
             ptprinthelper.ptprint( ptprinthelper.out_ifnot("Directory listing found at:", "WARNING", self.args.json), newline_above=True)
             for url in self.findings.directory_listing_urls:

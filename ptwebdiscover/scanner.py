@@ -139,7 +139,9 @@ class Scanner:
         self.parent.counters.increment_counter_complete()
         not_visited_urls = []
         for url in self.parent.findings.findings:
-            if url not in self.parent.findings.visited and url[:-1] not in self.parent.findings.visited:
+
+            url_encode = helpers.encode_url_path(url)
+            if url not in self.parent.findings.visited and url.rstrip("/") not in self.parent.findings.visited and url_encode not in self.parent.findings.visited and url_encode.rstrip("/") not in self.parent.findings.visited:
                 not_visited_urls.append(url)
         return not_visited_urls
 
@@ -296,7 +298,7 @@ class Scanner:
             content_type, ct_bullet = response_processor.get_text_directory_or_file(response, request_url)
             history = response_processor.get_response_history(response.history)
             content_location = response_processor.get_content_location(response)
-            
+
             if self.parent.args.parse:
                 parsed_urls = response_processor.parse_html_find_and_add_urls(response)
             else:
@@ -306,6 +308,11 @@ class Scanner:
             c_t_l = " [" + c_t + ", " + c_l + "b] "
             show_target = source if self.parent.args.target_server else response.url
             
+            # Check if HTTPS page loads any resources over HTTP
+            if response.text and self.parent.target.scheme == "https" and c_t == "text/html":
+                http_resources = response_processor.http_resources_in_https_page(response.text)
+                self.parent.findings.add_insecure_resources(response.url, http_resources)
+                
             # Print finding
             if not self.parent.args.json:
                 if parsed_urls and content_location:

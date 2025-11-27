@@ -491,6 +491,20 @@ def get_sitemap_url_from_robots_txt(self, url: str) -> str:
         ptprinthelper.ptprint(f"Could not retrieve robots.txt from {robots_txt_url}: {str(e)}", "WARNING", condition=self.args.json)
     return None
 
+def encode_url_path(url):
+    parsed = urllib.parse.urlparse(url)
+    encoded_path = urllib.parse.quote(parsed.path)
+    encoded_url = urllib.parse.urlunparse((
+        parsed.scheme,
+        parsed.netloc,
+        encoded_path,
+        parsed.params,
+        parsed.query,
+        parsed.fragment
+    ))
+    return encoded_url
+
+
 def print_progress_line(self, url: str = None) -> None:
     dirs_todo = len(self.findings.get_notvisited_directories())
     dir_no = "(D:" + str(dirs_todo) + " / " + str(self.counters.get_progress_percentage()) + "%) " if dirs_todo else ""
