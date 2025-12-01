@@ -87,8 +87,8 @@ def get_help():
             ["-s",  "--silent",                 "",                 "Do not show statistics in realtime"],
             ["-C",  "--cache",                  "",                 "Cache each request response to temp file"],
             ["-ne", "--non-exist",              "",                 "Check, if non existing pages return status code 200."],
-            ["-vy", "-vuln-yes",                "<vuln_code>",      "Add provided VULN to JSON if source is found"],
-            ["-vn", "-vuln-no",                 "<vuln_code>",      "Add provided VULN to JSON if source is not found"],
+            ["-vy", "--vuln-yes",               "<vuln_code>",      "Add provided VULN to JSON if source is found"],
+            ["-vn", "--vuln-no",                "<vuln_code>",      "Add provided VULN to JSON if source is not found"],
             ["-er", "--errors",                 "",                 "Show all errors"],
             ["-v",  "--version",                "",                 "Show script version"],
             ["-h",  "--help",                   "",                 "Show this help message"],
@@ -267,8 +267,6 @@ def parse_args(scriptname: str) -> ArgumentOptions:
         type    = lambda v: v.lower() if v.lower() in ["checked"] else argparse.ArgumentTypeError(f"Invalid choice: {v}"),
     )
     parser.add_argument("-v",  "--version", action="version", version=f"{SCRIPTNAME} {__version__}")
-
-
     parser.add_argument("-vy",  "--vuln-yes", type=str)
     parser.add_argument("-vn",  "--vuln-no",  type=str)
 

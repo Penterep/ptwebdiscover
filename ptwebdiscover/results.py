@@ -128,11 +128,11 @@ def print_results(self):
             self.ptjsonlib.add_vulnerability(self.args.vuln_yes)
         if not self.findings.backups_urls and self.args.vuln_no:
             self.ptjsonlib.add_vulnerability(self.args.vuln_no)
-    # Findings
+    # Findings from wordlist
     else:
-        if len(self.findings.findings) > 1 and self.args.vuln_yes:  # more than only root directory
+        if self.findings.findings_from_wordlist and self.args.vuln_yes:
             self.ptjsonlib.add_vulnerability(self.args.vuln_yes)
-        if len(self.findings.findings) < 2 and self.args.vuln_no:
+        elif not self.findings.findings_from_wordlist and self.args.vuln_no:
             self.ptjsonlib.add_vulnerability(self.args.vuln_no)
 
     # Only URLs by extensions specified in --extensions_output will be printed

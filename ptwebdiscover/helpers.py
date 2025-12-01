@@ -111,7 +111,7 @@ def prepare_wordlist(self) -> tuple[int, list[str]]:
         tuple[int, list[str]]: (keyspace size, prepared wordlist).
     """
     
-    wordlist_complete = [""]
+    wordlist_complete = []
     try:
         for wl in self.args.wordlist:
             with open(wl, encoding='utf-8', errors='ignore') as f:

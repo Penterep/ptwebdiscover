@@ -20,6 +20,7 @@ class Findings:
     forbidden_paths = ThreadSafeArray[str]()                    # array of paths that should not be tested
     insecure_resources = ThreadSafeArray[dict[str, list[str]]]()# array of insecure resources [{"url":["resource1", "resource2"]}]
     fpd = ThreadSafeArray[dict[str, list[str]]]()               # array of full path disclosure [{"url":["fpd1", "fpd2"]}]
+    findings_from_wordlist = ThreadSafeArray[str]()             # array of findings discovered from wordlist
 
     def __init__(self) -> None:
         pass
@@ -54,6 +55,10 @@ class Findings:
     def add_to_backups_urls(self, url: str) -> None:
         if url not in self.backups_urls:
             self.backups_urls.append(url)
+    
+    def add_to_findings_from_wordlist(self, url: str) -> None:
+        if url not in self.findings_from_wordlist:
+            self.findings_from_wordlist.append(url)
 
     def add_to_foreign_domain_urls(self, urls: list[str]) -> None:
         for url in urls:

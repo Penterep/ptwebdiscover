@@ -59,7 +59,7 @@ class PtWebDiscover():
         self.target.port                     = args.port                                                    # 80, 443, or custom port
 
     def run(self) -> None:
-        payloads = [""]
+        payloads = []
 
         helpers.check_website_and_method_availability(self)
 
@@ -108,7 +108,7 @@ class PtWebDiscover():
             return
 
         self.findings.directories = helpers.get_initial_directories(self)
-
+        
         while self.findings.directories:
             self.scanner.main_searching(self.findings.directories, payloads)
 

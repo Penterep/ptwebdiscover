@@ -290,6 +290,7 @@ class Scanner:
         """
         if self.is_response_compliant(response, request_url):
             response_processor = ResponseProcessor(self.parent)
+            self.parent.findings.add_to_findings_from_wordlist(request_url)
 
             if self.parent.args.save and response_processor.content_shorter_than_maximum(response):
                 path = Url(request_url).get_path_from_url(with_l_slash=False)
