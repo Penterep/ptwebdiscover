@@ -31,6 +31,6 @@ jobs:
       # Upload to PyPI
       - name: Publish to PyPI
         env:
-          TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}  # usually "__token__"
+          TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}  # API token from PyPI
         run: twine upload dist/*
