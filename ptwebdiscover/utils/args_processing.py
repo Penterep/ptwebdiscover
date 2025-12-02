@@ -19,27 +19,30 @@ def get_help():
             "Use special wordlist with format of lines \"location::technology\" for identify of used techlologies",
             "For proxy authorization use -p http://username:password@address:port"]},
         {"usage_example": [
-            "ptwebdiscover -u https://www.example.com",
+            "ptwebdiscover -u https://www.example.com -src robots.txt sitemap.xml -scy 200",
             "ptwebdiscover -u https://www.example.com -bf -ch lowercase,numbers,123abcdEFG*",
             "ptwebdiscover -u https://www.example.com -bf -lx 4",
             "ptwebdiscover -u https://www.example.com -w",
             "ptwebdiscover -u https://www.example.com -w wordlist.txt",
             "ptwebdiscover -u https://www.example.com -w wordlist.txt --begin_with admin",
             "ptwebdiscover -u https://*.example.com -w wordlist.txt",
+            "ptwebdiscover -u https://www.example.com -Po -tr"
             "ptwebdiscover -u https://www.example.com/exam*.txt",
             "ptwebdiscover -u https://www.example.com -bf -e \"\" bak old php~ php.bak",
             "ptwebdiscover -u https://www.example.com -w wordlist.txt-E extensions.txt",
-            "ptwebdiscover -u https://www.example.com -w wordlist.txt -sn \"Page Not Found\""
-            "ptwebdiscover -u https://www.example.com -arch"
+            "ptwebdiscover -u https://www.example.com -w wordlist.txt -sn \"Page Not Found\"",
+            "ptwebdiscover -u https://www.example.com -arch checked",
+            "ptwebdiscover -u https://www.example.com -ba",
+            "ptwebdiscover -u https://www.example.com -sm"
         ]},
         {"options": [
             ["-bf",  "--bruteforce",            "",                 "Enable brute force mode"],
             ["-u",  "--url",                    "<url>",            "URL for test (usage of a star character as anchor)"],
             ["-ch", "--charsets",               "<charsets>",       "Specify charset for brute force (example: lowercase,uppercase,numbers,[custom_chars])"],
             ["",    "",                         "",                 "Modify wordlist (lowercase,uppercase,capitalize)"],
-            ["-scy", "--status-code-yes",       "",                 "Include only sources returned with provided status codes"],
-            ["-scn", "--status-code-no",        "",                 "Not include sources returned with provided status codes"],
-            ["-src", "--source",                "<sources>",        "Check for presence of only specified <source> (eg. -src robots.txt)"],
+            ["-scy","--status-code-yes",        "<status codes>",   "Include only sources returned with provided status codes"],
+            ["-scn","--status-code-no",         "<status codes>",   "Not include sources returned with provided status codes"],
+            ["-src","--source",                 "<sources>",        "Check for presence of only specified <source> (eg. -src robots.txt)"],
             ["-fp",  "--forbidden-paths",       "<paths>",          "Paths that should not be tested"],
             ["-lm", "--length-min",             "<length-min>",     "Minimal length of brute-force tested string (default 1)"],
             ["-lx", "--length-max",             "<length-max>",     "Maximal length of brute-force tested string (default 6 bf / 99 wl"],
@@ -50,8 +53,8 @@ def get_help():
             ["-ci", "--case-insensitive",       "",                 "Case insensitive items from wordlist"],
             ["-e",  "--extensions",             "<extensions>",     "Add extensions behind a tested string (\"\" for empty extension)"],
             ["-E",  "--extension-file",         "<filename>",       "Add extensions from default or specified file behind a tested string."],
-            ["-ew",  "--extensions-whitelist",  "<extensions>",     "Check for extensions whitelisting on the server (default are common backup and config extensions)"],
-            ["-eo",  "--extensions-output",     "<extensions>",     "Include only sources with specified extensions in output"],            
+            ["-ew", "--extensions-whitelist",   "<extensions>",     "Check for extensions whitelisting on the server (default are common backup and config extensions)"],
+            ["-eo", "--extensions-output",      "<extensions>",     "Include only sources with specified extensions in output"],            
             ["-r",  "--recurse",                "",                 "Recursive browsing of found directories"],
             ["-md", "--max_depth",              "<integer>",        "Maximum depth during recursive browsing (default: 20)"],
             ["-b",  "--backups",                "",                 "Search for backups of disclosed files"],
@@ -62,7 +65,6 @@ def get_help():
             ["-nd", "--not-directories",        "<directories>",    "Not include listed directories when recursive browse run"],
             ["-sy", "--string-in-response",     "<string>",         "Print findings only if string in response (GET method is used)"],
             ["-sn", "--string-not-in-response", "<string>",         "Print findings only if string not in response (GET method is used)"],
-            ["-sc", "--status-codes",           "<status-codes>",   "Ignore response with status codes (default 404)"],
             ["-d",  "--delay",                  "<miliseconds>",    "Delay before each request in seconds"],
             ["-T",  "--timeout",                "<miliseconds>",    "Manually set timeout (default 10000)"],
             ["-cl", "--content-length",         "<kilobytes>",      "Max content length to download and parse (default: 1000KB)"],
@@ -78,7 +80,7 @@ def get_help():
             ["-wd", "--without-domain",         "",                 "Output of discovered sources without domain"],
             ["-wh", "--with-headers",           "",                 "Output of discovered sources with headers"],
             ["-ip", "--include-parameters",     "",                 "Include GET parameters and anchors to output"],
-            ["-fd", "--foreign-domains",       "",                  "Output of discovered sources with foreign domains"],
+            ["-fd", "--foreign-domains",        "",                 "Output of discovered sources with foreign domains"],
             ["-tr", "--tree",                   "",                 "Output as tree"],
             ["-o",  "--output",                 "<filename>",       "Output to file"],
             ["-S",  "--save",                   "<directory>",      "Save content localy"],
@@ -86,7 +88,7 @@ def get_help():
             ["-nr", "--not-redirect",           "",                 "Do not follow redirects"],
             ["-s",  "--silent",                 "",                 "Do not show statistics in realtime"],
             ["-C",  "--cache",                  "",                 "Cache each request response to temp file"],
-            ["-ne", "--non-exist",              "",                 "Check, if non existing pages return status code 200."],
+            ["-ne", "--non-exist",              "",                 "Check, if non existing pages return status code 200"],
             ["-vy", "--vuln-yes",               "<vuln_code>",      "Add provided VULN to JSON if source is found"],
             ["-vn", "--vuln-no",                "<vuln_code>",      "Add provided VULN to JSON if source is not found"],
             ["-er", "--errors",                 "",                 "Show all errors"],
@@ -94,10 +96,10 @@ def get_help():
             ["-h",  "--help",                   "",                 "Show this help message"],
             ["-j",  "--json",                   "",                 "Output in JSON format"],
             ["-gl", "--google",                 "",                 "Use Google Custom Search API for URL discovery"],
-            ["-gak","--google-api",              "<api_key>",       "Google Custom Search API key"],
-            ["-gcx","--google-cx",               "<cx_key>",        "Google Custom Search CX key"],
+            ["-gak","--google-api",             "<api_key>",        "Google Custom Search API key"],
+            ["-gcx","--google-cx",              "<cx_key>",         "Google Custom Search CX key"],
             ["-sm", "--sitemap",                "",                 "Parse sitemap.xml for URL discovery"],
-            ["-arch",  "--archive",             "",                 "Passive scan via webarchive, accepts optional arguments: (checked)"],
+            ["-arch","--archive",               "[checked]",        "Passive scan via webarchive, accepts optional arguments: (checked)"],
         ]},
     ]
 
@@ -229,7 +231,7 @@ def parse_args(scriptname: str) -> ArgumentOptions:
     parser.add_argument("-sy", "--string-in-response", type=str)
     parser.add_argument("-sn", "--string-not-in-response", type=str)
     parser.add_argument("-scy","--status-code-yes", type=int, nargs="+", default=[])
-    parser.add_argument("-scn","--status-code-no", type=int, nargs="+", default=[400, 404, 407, 408, 410, 412, 415, 416, 418, 421, 423, 424, 425, 426, 427, 428, 429])
+    parser.add_argument("-scn","--status-code-no", type=int, nargs="+", default=[])
     parser.add_argument("-m",  "--method", type=str.upper, default="HEAD", choices=["GET", "POST", "TRACE", "OPTIONS", "PUT", "DELETE", "HEAD", "DEBUG"])
     parser.add_argument("-se", "--scheme", type=str.lower, choices=["http", "https"])
     parser.add_argument("-d",  "--delay", type=int, default=0)
@@ -381,6 +383,9 @@ def check_args_combinations(args) -> None:
 
     if args.status_code_yes and args.status_code_no:
             ptjsonlib_.end_error(f"Cannot specify both --status-code-yes and --status-code-no", args.json)
+
+    if not args.status_code_no and not args.status_code_yes:
+        args.status_code_no = [400, 404, 407, 408, 410, 412, 415, 416, 418, 421, 423, 424, 425, 426, 427, 428, 429]
 
     if args.bruteforce and (args.wordlist or args.backup_all or args.parse_only or args.archive or args.source):
         ptjsonlib_.end_error("Cannot use -bf/--bruteforce with -w, -ba, -Po, -arch and -src options", args.json)
