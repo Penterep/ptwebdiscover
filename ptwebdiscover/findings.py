@@ -93,4 +93,7 @@ class Findings:
 
         # Přidat novou URL a její zdroje
         self.insecure_resources.append({page_url: resources})
+    
+    def add_fpd(self, url_fpd:list[dict[str, list[str]]]) -> None:
+        self.fpd.extend(url_fpd)
 

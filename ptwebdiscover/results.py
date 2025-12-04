@@ -156,8 +156,9 @@ def print_results(self):
                 ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"{url}", "", self.args.json))
 
 def print_warnings(self) -> None:
-    if self.findings.directory_listing_urls or self.findings.long_content_in_redirect_urls or self.findings.backups_urls or self.findings.insecure_resources:
+    if self.findings.directory_listing_urls or self.findings.long_content_in_redirect_urls or self.findings.backups_urls or self.findings.insecure_resources or self.findings.fpd:
         ptprinthelper.ptprint( ptprinthelper.out_ifnot("Warning: Next potential problems found:", "WARNING", condition=self.args.json, colortext=True))
+
         if self.findings.insecure_resources:
             ptprinthelper.ptprint( ptprinthelper.out_ifnot("Insecure resources found at:", "WARNING", self.args.json), newline_above=True)
             total_urls = len(self.findings.insecure_resources)
@@ -165,25 +166,43 @@ def print_warnings(self) -> None:
                 if i >= 20:
                     break
                 for url, resources in entry.items():
-                    ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"    {url}", "", self.args.json), end="     ")
+                    ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"    {url}", "", self.args.json))
                     for r in resources:
-                        ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"{r} ", "ADDITIONS", colortext=True, condition=self.args.json), end="")
-                    ptprinthelper.ptprint(ptprinthelper.out_ifnot(" ", "", self.args.json))
+                        ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"        {r}", "ADDITIONS", colortext=True, condition=self.args.json))
             remaining = total_urls - 20
             if remaining > 0:
-                ptprinthelper.ptprint(ptprinthelper.out_ifnot("... and next {remaining} urls", "", self.args.json))
+                ptprinthelper.ptprint(ptprinthelper.out_ifnot(f"... and next {remaining} urls", "", self.args.json))
+
+        if self.findings.fpd:
+            ptprinthelper.ptprint( ptprinthelper.out_ifnot("Full path disclosure found at:", "WARNING", self.args.json), newline_above=True)
+            total_urls = len(self.findings.fpd)
+            for i, entry in enumerate(self.findings.fpd):
+                if i >= 20:
+                    break
+                for item in self.findings.fpd:
+                    for url, texts in item.items():
+                        ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"    {url}", "", self.args.json))
+                        for text in texts:
+                            ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"        {text}", "ADDITIONS", colortext=True, condition=self.args.json))
+            remaining = total_urls - 20
+            if remaining > 0:
+                ptprinthelper.ptprint(ptprinthelper.out_ifnot(f"... and next {remaining} urls", "", self.args.json))
+
         if self.findings.directory_listing_urls:
             ptprinthelper.ptprint( ptprinthelper.out_ifnot("Directory listing found at:", "WARNING", self.args.json), newline_above=True)
             for url in self.findings.directory_listing_urls:
                 ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"    {url}", "", self.args.json))
+
         if self.findings.long_content_in_redirect_urls:
             ptprinthelper.ptprint( ptprinthelper.out_ifnot("Long content found in redirects at:", "WARNING", self.args.json), newline_above=True)
             for url in self.findings.long_content_in_redirect_urls:
                 ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"    {url}", "", self.args.json))
+
         if self.findings.backups_urls:
             ptprinthelper.ptprint( ptprinthelper.out_ifnot("Backups found at:", "WARNING", self.args.json), newline_above=True)
             for url in self.findings.backups_urls:
                 ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"    {url}", "", self.args.json))
+            
 
 def print_finish_message(self) -> None:
     ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"Finished in {self.counters.get_elapsed_time()} - discovered: {len(self.findings.findings)} items", "INFO", self.args.json), newline_above=True)

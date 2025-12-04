@@ -4,9 +4,9 @@ import requests
 import helpers
 import urllib.parse
 from utils.url import Url
-from ptlibs import ptprinthelper, ptmisclib
+from ptlibs import ptprinthelper, ptmisclib, ptcharsethelper
 from responseprocessor import ResponseProcessor
-from ptlibs import ptcharsethelper
+from ptlibs.http.modules.fpd import find_fpd
 
 class Scanner:
     def __init__(self, parent) -> None:
@@ -296,11 +296,14 @@ class Scanner:
                 path = Url(request_url).get_path_from_url(with_l_slash=False)
                 response_processor.save_content(response.content, path, self.parent.args.save)
             
-            content_type, ct_bullet = response_processor.get_text_directory_or_file(response, request_url)
+            file_or_dir, ct_bullet = response_processor.get_text_directory_or_file(response, request_url)
             history = response_processor.get_response_history(response.history)
             content_location = response_processor.get_content_location(response)
 
-            if self.parent.args.parse:
+            c_t, c_l = response_processor.get_content_type_and_length(response.headers)
+            c_t_l = " [" + c_t + ", " + c_l + "b] "
+
+            if self.parent.args.parse and c_t.startswith("text/") and response.text:
                 parsed_urls = response_processor.parse_html_find_and_add_urls(response)
             else:
                 parsed_urls = ""
@@ -308,6 +311,12 @@ class Scanner:
             c_t, c_l = response_processor.get_content_type_and_length(response.headers)
             c_t_l = " [" + c_t + ", " + c_l + "b] "
             show_target = source if self.parent.args.target_server else response.url
+            
+            # Check if response (include redirects) contains potential full path disclosure
+            if c_t.startswith("text/") and response.text:
+                fpd = find_fpd(response)
+                if fpd:
+                    self.parent.findings.add_fpd(fpd)
             
             # Check if HTTPS page loads any resources over HTTP
             if response.text and self.parent.target.scheme == "https" and c_t == "text/html":
