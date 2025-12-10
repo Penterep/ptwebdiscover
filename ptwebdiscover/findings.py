@@ -95,5 +95,9 @@ class Findings:
         self.insecure_resources.append({page_url: resources})
     
     def add_fpd(self, url_fpd:list[dict[str, list[str]]]) -> None:
-        self.fpd.extend(url_fpd)
+        existing_keys = {key for d in self.fpd for key in d}
+        for d in url_fpd:
+            key = next(iter(d))
+            if key not in existing_keys:
+                self.fpd.extend(url_fpd)
 

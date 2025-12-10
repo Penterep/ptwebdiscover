@@ -174,16 +174,21 @@ def print_warnings(self) -> None:
                 ptprinthelper.ptprint(ptprinthelper.out_ifnot(f"... and next {remaining} urls", "", self.args.json))
 
         if self.findings.fpd:
-            ptprinthelper.ptprint( ptprinthelper.out_ifnot("Full path disclosure found at:", "WARNING", self.args.json), newline_above=True)
+            ptprinthelper.ptprint(ptprinthelper.out_ifnot("Full path disclosure found at:", "WARNING", self.args.json), newline_above=True)
+
             total_urls = len(self.findings.fpd)
+
             for i, entry in enumerate(self.findings.fpd):
                 if i >= 20:
                     break
-                for item in self.findings.fpd:
-                    for url, texts in item.items():
-                        ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"    {url}", "", self.args.json))
-                        for text in texts:
-                            ptprinthelper.ptprint( ptprinthelper.out_ifnot(f"        {text}", "ADDITIONS", colortext=True, condition=self.args.json))
+
+                for url, texts in entry.items():
+                    ptprinthelper.ptprint(
+                        ptprinthelper.out_ifnot(f"    {url}", "", self.args.json)
+                    )
+                    for text in texts:
+                        ptprinthelper.ptprint(ptprinthelper.out_ifnot(f"        {text}", "ADDITIONS", colortext=True, condition=self.args.json))
+
             remaining = total_urls - 20
             if remaining > 0:
                 ptprinthelper.ptprint(ptprinthelper.out_ifnot(f"... and next {remaining} urls", "", self.args.json))

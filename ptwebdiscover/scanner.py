@@ -308,10 +308,6 @@ class Scanner:
             else:
                 parsed_urls = ""
             
-            c_t, c_l = response_processor.get_content_type_and_length(response.headers)
-            c_t_l = " [" + c_t + ", " + c_l + "b] "
-            show_target = source if self.parent.args.target_server else response.url
-            
             # Check if response (include redirects) contains potential full path disclosure
             if c_t.startswith("text/") and response.text:
                 fpd = find_fpd(response)
@@ -328,6 +324,8 @@ class Scanner:
                 if parsed_urls and content_location:
                     parsed_urls = parsed_urls + "\n"
 
+                show_target = source if self.parent.args.target_server else response.url
+                
                 self.parent.printlock.lock_print(
                     history +
                     ptprinthelper.add_spaces_to_eon(
