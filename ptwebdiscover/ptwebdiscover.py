@@ -74,7 +74,11 @@ class PtWebDiscover():
             ptprinthelper.ptprint(f"Webarchive URLs: {len(payloads)}\n", "INFO", condition=not self.args.json, clear_to_eol=True)
         
         if self.args.sitemap:
-            sitemap_urls = sitemap.parse_sitemap(self, self.target.url)
+            if helpers.is_url_domain_only(self.target.url):
+                sitemap_url = helpers.get_sitemap_url_from_robots_txt(self, self.target.url)
+            else:
+                sitemap_url = self.target.url
+            sitemap_urls = sitemap.parse_sitemap(self, sitemap_url)
             if sitemap_urls:
                 self.findings.findings.extend(sitemap_urls)
                 #results.output_result(self.args, sitemap_urls)
