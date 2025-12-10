@@ -2,9 +2,10 @@ import helpers
 from ptlibs import ptprinthelper
 import xml.etree.ElementTree as ET
 
-def parse_sitemap(self, url=None) -> list:
+def parse_sitemap(self, url=None, _root_call=True) -> list:
     
-    ptprinthelper.ptprint("Sitemap crawling:", "TITLE", condition=not self.args.json, clear_to_eol=True)
+    if _root_call:
+        ptprinthelper.ptprint("Sitemap crawling:", "TITLE", condition=not self.args.json, clear_to_eol=True)
 
     if helpers.is_url_domain_only(url):
         url= helpers.get_sitemap_url_from_robots_txt(self, url)
@@ -25,7 +26,7 @@ def parse_sitemap(self, url=None) -> list:
     if root.tag.endswith('sitemapindex'):
         for sitemap in root.findall('s:sitemap', ns):
             loc = sitemap.find('s:loc', ns).text
-            urls.extend(parse_sitemap(self, loc))  # recurse
+            urls.extend(parse_sitemap(self, loc, _root_call=False))  # recurse
     else:
         for url_elem in root.findall('s:url', ns):
             loc = url_elem.find('s:loc', ns).text
