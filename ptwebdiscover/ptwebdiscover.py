@@ -137,7 +137,12 @@ def main():
     requests.packages.urllib3.disable_warnings()
     args = args_processing.parse_args(SCRIPTNAME)
     script = PtWebDiscover(args)
-    script.run()
+    try:
+        script.run()
+    except requests.exceptions.TooManyRedirects as e:
+        script.ptjsonlib.end_error("Too many redirects", args.json, details=str(e))
+    except requests.exceptions.RequestException as e:
+        script.ptjsonlib.end_error("HTTP request failed", args.json, details=str(e))
 
 
 if __name__ == "__main__":
