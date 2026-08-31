@@ -19,14 +19,40 @@ def add_cookies_to_headers(args: ArgumentOptions, response) -> None:
         args (ArgumentOptions): Parsed and processed command-line arguments.
     """
 
-    cookies = args.cookie if args.cookie else ""
+    def parse_cookie_pairs(cookie_header: str) -> dict[str, str]:
+        pairs = {}
+        if not cookie_header:
+            return pairs
+
+        for part in cookie_header.split(";"):
+            part = part.strip()
+            if not part or "=" not in part:
+                continue
+            name, value = part.split("=", 1)
+            name = name.strip()
+            if name:
+                pairs[name] = value.strip()
+        return pairs
+
+    # Cookies provided by -c have priority and must not be overwritten.
+    user_cookies = parse_cookie_pairs(args.cookie if args.cookie else "")
+    merged_cookies = dict(user_cookies)
+
     try:
-        for c in response.raw.headers.getlist('Set-Cookie'):
-            cookies += c.split("; ")[0] + "; "
-    except:
+        for set_cookie in response.raw.headers.getlist("Set-Cookie"):
+            cookie_pair = set_cookie.split(";", 1)[0].strip()
+            if "=" not in cookie_pair:
+                continue
+            name, value = cookie_pair.split("=", 1)
+            name = name.strip()
+            if not name or name in user_cookies:
+                continue
+            merged_cookies[name] = value.strip()
+    except Exception:
         pass
-    if cookies:
-        args.headers["Cookie"] = cookies
+
+    if merged_cookies:
+        args.headers["Cookie"] = "; ".join(f"{name}={value}" for name, value in merged_cookies.items())
 
 
 def check_website_and_method_availability(self):

@@ -4,11 +4,35 @@ import sys
 import glob
 import os
 import re
+from http.cookies import SimpleCookie, CookieError
 from ptlibs import ptnethelper, ptcharsethelper, ptprinthelper, ptjsonlib, ptmisclib
 from ptlibs.ptprinthelper import ptprint
 from ptdataclasses.argumentoptions import ArgumentOptions
 from utils.url import Url
 from _version import __version__
+
+
+def validate_cookie_argument(cookie_value: str, json_output: bool) -> None:
+    """Validate -c/--cookie format and fail with a readable message."""
+    if not cookie_value:
+        return
+
+    try:
+        parsed = SimpleCookie()
+        parsed.load(cookie_value)
+    except CookieError as error:
+        ptjsonlib.PtJsonLib().end_error(
+            "Invalid cookie format in -c/--cookie. Expected format: name=value; other_name=other_value",
+            json_output,
+            details=f"Provided value: {cookie_value}. Parser error: {error}"
+        )
+
+    if not parsed:
+        ptjsonlib.PtJsonLib().end_error(
+            "Invalid cookie format in -c/--cookie. Expected format: name=value; other_name=other_value",
+            json_output,
+            details=f"Provided value: {cookie_value}"
+        )
 
 def get_help():
     return [
@@ -282,6 +306,8 @@ def parse_args(scriptname: str) -> ArgumentOptions:
 
     args = parser.parse_args()
 
+    validate_cookie_argument(args.cookie, args.json)
+
     if args.archive == []:
         args.archive = True
 
@@ -385,7 +411,7 @@ def check_args_combinations(args) -> None:
             ptjsonlib_.end_error(f"Cannot specify both --status-code-yes and --status-code-no", args.json)
 
     if not args.status_code_no and not args.status_code_yes:
-        args.status_code_no = [400, 404, 407, 408, 410, 412, 415, 416, 418, 421, 423, 424, 425, 426, 427, 428, 429]
+        args.status_code_no = [404, 407, 408, 410, 412, 415, 416, 418, 421, 423, 424, 425, 426, 427, 428, 429]
 
     if args.bruteforce and (args.wordlist or args.backup_all or args.parse_only or args.archive or args.source):
         ptjsonlib_.end_error("Cannot use -bf/--bruteforce with -w, -ba, -Po, -arch and -src options", args.json)
